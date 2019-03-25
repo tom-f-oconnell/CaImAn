@@ -165,7 +165,8 @@ class Estimates(object):
         self.discarded_components = None
 
 
-
+    # TODO refactor this (and / or visualization fn) to take ax, if this is
+    # going to be useful at all
     def plot_contours(self, img=None, idx=None, crd=None, thr_method='max',
                       thr=0.2, display_numbers=True, params=None,
                       cmap='viridis'):

@@ -306,6 +306,8 @@ class CNMF(object):
         self.estimates = Estimates(A=Ain, C=Cin, b=b_in, f=f_in,
                                    dims=self.params.data['dims'])
 
+    # TODO this should take a filename / fnames directly if fit( takes array
+    # , i think
     def fit_file(self, motion_correct=False, indices=None, include_eval=False):
         """
         This method packages the analysis pipeline (motion correction, memory
@@ -328,6 +330,7 @@ class CNMF(object):
         """
         if indices is None:
             indices = (slice(None), slice(None))
+
         fnames = self.params.get('data', 'fnames')
         if os.path.exists(fnames[0]):
             _, extension = os.path.splitext(fnames[0])[:2]

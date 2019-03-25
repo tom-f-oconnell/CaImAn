@@ -415,6 +415,8 @@ def save_memmap(filenames: List[str],
                 or slices is not None:
 
             logging.debug('Distributing memory map over many files')
+            # TODO it's not clear enough to me how they determine they need to
+            # do that... (and why would you, with 64-bit address space?)
             # Here we make a bunch of memmap files in the right order. Same parameters
             fname_parts = cm.save_memmap_each(filenames,
                                               base_name=base_name,
@@ -519,6 +521,9 @@ def save_memmap(filenames: List[str],
                     logging.debug('SAVING WITH numpy.tofile()')
                     Yr.tofile(fname_tot)
             else:
+                # TODO does it make sense to use memmap to write to the files?
+                # why? isn't the goal just to get binary files that can be read
+                # with numpy's memmap?
                 big_mov = np.memmap(fname_tot,
                                     dtype=np.float32,
                                     mode='r+',

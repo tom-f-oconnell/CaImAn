@@ -214,7 +214,7 @@ class CNMFParams(object):
             maxIter: int, default: 5
                 number of HALS iterations during initialization
 
-            method_init: 'greedy_roi'|'greedy_pnr'|'sparse_NMF'|'local_NMF' default: 'greedy_roi'
+            method_init: 'greedy_roi'|'greedy_pnr'|'sparse_NMF'|'local_NMF', default: 'greedy_roi'
                 initialization method. use 'greedy_pnr' for 1p processing and 'sparse_NMF' for dendritic processing.
 
             min_corr: float, default: 0.85
@@ -244,7 +244,7 @@ class CNMFParams(object):
             kernel: np.array or None, default: None
                 user specified template for greedyROI
 
-            max_iter_snmf : int, default: 500
+            max_iter_snmf: int, default: 500
                 maximum number of iterations for sparse NMF initialization
 
             alpha_snmf: float, default: 100
@@ -391,7 +391,9 @@ class CNMFParams(object):
             rval_thr: float, default: 0.8
                 space correlation threshold. Components with correlation higher than this will get accepted
 
-            rval_lowest: float, default: -1
+            # TODO TODO i assume -1 disables this? make it so None disables it
+            # instead, or at the very least document -1 behavior
+            rval_lowest: float, default: -1.
                 minimum required space correlation. Components with correlation below this will get rejected
 
             use_cnn: bool, default: True
@@ -403,7 +405,7 @@ class CNMFParams(object):
             cnn_lowest: float, default: 0.1
                 minimum required CNN threshold. Components with score lower than this will get rejected.
 
-            gSig_range: list or integers, default: None
+            gSig_range: list of integers, default: None
                 gSig scale values for CNN classifier. In not None, multiple values are tested in the CNN classifier.
 
         ONLINE CNMF (ONACID) PARAMETERS (CNMFParams.online)#####
@@ -777,7 +779,10 @@ class CNMFParams(object):
             'gSig_range': None,        # range for gSig scale for CNN classifier
             'min_SNR': min_SNR,        # transient SNR threshold
             'min_cnn_thr': 0.9,        # threshold for CNN classifier
-            'rval_lowest': -1,         # minimum accepted space correlation
+            # TODO TODO i assume -1 disables this? make it so None disables it
+            # instead, or at the very least document -1 behavior
+            # TODO does -1. behave same as -1?
+            'rval_lowest': -1.,         # minimum accepted space correlation
             'rval_thr': rval_thr,      # space correlation threshold
             'use_cnn': True,           # use CNN based classifier
             'use_ecc': False,          # flag for eccentricity based filtering

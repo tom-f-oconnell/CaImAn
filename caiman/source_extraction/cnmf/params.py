@@ -1,4 +1,8 @@
+
 import logging
+import os
+import json
+
 import numpy as np
 import os
 import pkg_resources
@@ -627,6 +631,8 @@ class CNMFParams(object):
             reuse_model: bool, default: False
                 Flag for reusing an already trained model (saved in path to model)
         """
+        # TODO maybe implement using first, optional, positional arg as a
+        # filename from which to load saved parameters
 
         self.data = {
             'fnames': fnames,
@@ -962,6 +968,15 @@ class CNMFParams(object):
                     logging.warning(
                         "NOT setting value of key {0} in group {1}, because no prior key existed...".format(k, group))
             else:
+                if type(v) is list:
+                    if type(d[k]) is tuple:
+                        # TODO make recursive?
+                        v = tuple(v)
+                    # TODO also accomodate subclass->subclass (for their movie
+                    # class, etc)?
+                    elif type(d[k]) is np.ndarray:
+                        v = np.array(v)
+
                 if np.any(d[k] != v):
                     logging.info(
                         "Changing key {0} in group {1} from {2} to {3}".format(k, group, d[k], v))
@@ -1019,8 +1034,11 @@ class CNMFParams(object):
         return True
 
     def to_dict(self):
-        """Returns the params class as a dictionary with subdictionaries for each
-        catergory."""
+        """
+        Returns the params class as a dictionary with subdictionaries for each
+        category.
+        """
+        # TODO why the _params for just some? inconsistent...
         return {'data': self.data, 'spatial_params': self.spatial, 'temporal_params': self.temporal,
                 'init_params': self.init, 'preprocess_params': self.preprocess,
                 'patch_params': self.patch, 'online': self.online, 'quality': self.quality,
@@ -1045,8 +1063,15 @@ class CNMFParams(object):
             params_dict: dictionary with parameters to be changed and new values
             verbose: bool (False). Print message for all keys
         """
+        # TODO TODO if i'm going to have a filename attribute, make sure things
+        # that use __dict__ exclude it, to keep behavior same as before
         for gr in list(self.__dict__.keys()):
+            # TODO TODO is this working as expected? set works on single params
+            # not groups, right? so how could params_dict refer to all params?
+            # would seemingly fail if there was a param w/ the same name in two
+            # groups...
             self.set(gr, params_dict, verbose=verbose)
+
         for k, v in params_dict.items():
             flag = True
             for gr in list(self.__dict__.keys()):
@@ -1057,3 +1082,48 @@ class CNMFParams(object):
                 logging.warning('No parameter {0} found!'.format(k))
         self.check_consistency()
         return self
+
+
+    def to_json(self, *args):
+        if len(args) == 0:
+            return json.dumps(self.__dict__, sort_keys=True,
+                cls=CNMFParamJSONEncoder)
+
+        elif len(args) == 1:
+            filename = args[0]
+            with open(filename, 'w') as f:
+                json.dump(self.__dict__, f, sort_keys=True,
+                    cls=CNMFParamJSONEncoder)
+
+        else:
+            raise ValueError('expected 1 filename arg or no args')
+
+
+    @staticmethod
+    def from_json(filename):
+        new_params = CNMFParams()
+        with open(filename, 'r') as f:
+            data = json.load(f)
+
+        for g, ps in data.items():
+            new_params.set(g, ps)
+
+        return new_params
+
+    # TODO TODO add methods to make params de/serializable from/to pickle?
+    # TODO and make both methods take an (optional) file-like object, so they
+    # can write to a data string or something (for insertion into db)?
+
+class CNMFParamJSONEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if type(obj).__module__ == np.__name__:
+            if isinstance(obj, np.ndarray):
+                # TODO what is proper return type here? json? object
+                # serializable to json? either?
+                return obj.tolist()
+            else:
+                # TODO what type is this? just identity, and then array handled
+                # at next level up, or what?
+                return obj.item()
+        return json.JSONEncoder.default(self, obj)
+

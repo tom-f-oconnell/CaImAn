@@ -301,8 +301,12 @@ class CNMF(object):
             )
         else:
             self.params = params
+            # TODO check this setting line (not present in last version of code
+            # i worked with, doesn't break some of my param handling code in my
+            # old caiman-wrapping-gui)
             params.set('patch', {'n_processes': n_processes})
 
+        # TODO fit should take image dims if they are none here...
         self.estimates = Estimates(A=Ain, C=Cin, b=b_in, f=f_in,
                                    dims=self.params.data['dims'])
 
@@ -452,6 +456,16 @@ class CNMF(object):
             indices = indices + [slice(None)]*(len(images.shape) - len(indices))
         dims_orig = images.shape[1:]
         dims_sliced = images[tuple(indices)].shape[1:]
+
+        # TODO maybe it should *always* reset dims? (refers to now commented
+        # code below)
+
+        # (commented these two lines b/c they were deleted in upstream CaImAn,
+        # but i'm not yet sure whether this causes some error w/ my old code
+        # that dealt w/ caiman. leaving here for reference in case it did break)
+        #if self.estimates.dims is None:
+        #    self.estimates.dims = dims_sliced
+
         is_sliced = (dims_orig != dims_sliced)
         if self.params.get('patch', 'rf') is None and (is_sliced or 'ndarray' in str(type(images))):
             images = images[tuple(indices)]

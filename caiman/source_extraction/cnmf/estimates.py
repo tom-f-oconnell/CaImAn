@@ -168,8 +168,8 @@ class Estimates(object):
     # TODO refactor this (and / or visualization fn) to take ax, if this is
     # going to be useful at all
     def plot_contours(self, img=None, idx=None, crd=None, thr_method='max',
-                      thr=0.2, display_numbers=True, params=None,
-                      cmap='viridis'):
+                      thr='0.2', display_numbers=True, params=None,
+                      cmap='viridis', ax=None, **kwargs):
         """view contours of all spatial footprints.
 
         Args:
@@ -194,35 +194,69 @@ class Estimates(object):
         if img is None:
             img = np.reshape(np.array(self.A.mean(1)), self.dims, order='F')
         if self.coordinates is None:  # not hasattr(self, 'coordinates'):
-            self.coordinates = caiman.utils.visualization.get_contours(self.A, img.shape, thr=thr, thr_method=thr_method)
-        plt.figure()
-        if params is not None:
-            plt.suptitle('min_SNR=%1.2f, rval_thr=%1.2f, use_cnn=%i'
-                         %(params.quality['SNR_lowest'],
-                           params.quality['rval_thr'],
-                           int(params.quality['use_cnn'])))
+            # TODO does this call mpl stuff?
+            # TODO check that my old code didn't depend on me setting self.dims,
+            # in a way where img.shape won't give me the same answer here!
+            # (they changed what used to be self.dims to what is now img.shape)
+            self.coordinates = caiman.utils.visualization.get_contours(self.A,
+                img.shape, thr=thr, thr_method=thr_method)
+
+        if ax is None:
+            plt.figure()
+            # TODO i added this line when merging w/ upstream 2020-05-26
+            # but check it doesn't break ax handling below
+            # (see NotImplementedError...)
+            ax = plt.gca()
+
+            if params is not None:
+                # TODO maybe still aim for a title in the case where an axes is
+                # passed in? set_title?
+                plt.suptitle('min_SNR=%1.2f, rval_thr=%1.2f, use_cnn=%i'
+                             %(params.quality['SNR_lowest'],
+                               params.quality['rval_thr'],
+                               int(params.quality['use_cnn'])))
         if idx is None:
-            caiman.utils.visualization.plot_contours(self.A, img, coordinates=self.coordinates,
-                                                     display_numbers=display_numbers,
-                                                     cmap=cmap)
+            caiman.utils.visualization.plot_contours(
+                self.A,
+                img,
+                coordinates=self.coordinates,
+                display_numbers=display_numbers,
+                ax=ax,
+                cmap=cmap,
+                # TODO implement for other things too
+                **kwargs
+            )
         else:
             if not isinstance(idx, list):
                 idx = idx.tolist()
             coor_g = [self.coordinates[cr] for cr in idx]
             bad = list(set(range(self.A.shape[1])) - set(idx))
             coor_b = [self.coordinates[cr] for cr in bad]
+
+            if ax is not None:
+                raise NotImplementedError
+
+            # TODO this path would normally make multiple plots. put on same ax
+            # if passed in.
             plt.subplot(1, 2, 1)
-            caiman.utils.visualization.plot_contours(self.A[:, idx], img,
-                                                     coordinates=coor_g,
-                                                     display_numbers=display_numbers,
-                                                     cmap=cmap)
+            caiman.utils.visualization.plot_contours(
+                self.A[:, idx],
+                img,
+                coordinates=coor_g,
+                display_numbers=display_numbers,
+                cmap=cmap
+            )
+
             plt.title('Accepted Components')
             bad = list(set(range(self.A.shape[1])) - set(idx))
             plt.subplot(1, 2, 2)
-            caiman.utils.visualization.plot_contours(self.A[:, bad], img,
-                                                     coordinates=coor_b,
-                                                     display_numbers=display_numbers,
-                                                     cmap=cmap)
+            caiman.utils.visualization.plot_contours(
+                self.A[:, bad],
+                img,
+                coordinates=coor_b,
+                display_numbers=display_numbers,
+                cmap=cmap
+            )
             plt.title('Rejected Components')
         return self
 

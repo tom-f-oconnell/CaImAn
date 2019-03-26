@@ -971,9 +971,12 @@ def view_patches_bar(Yr, A, C, b, f, d1, d2, YrA=None, img=None):
 #%%
 
 
-def plot_contours(A, Cn, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9, display_numbers=True, max_number=None,
-                  cmap=None, swap_dim=False, colors='w', vmin=None, vmax=None, coordinates=None,
-                  contour_args={}, number_args={}, **kwargs):
+# TODO fix possible error upstream has introduced by using mutable defaults for
+# kwargs (only ever one set produced if not redefined, i think)
+def plot_contours(A, Cn, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9,
+        display_numbers=True, max_number=None, cmap=None, swap_dim=False,
+        colors='w', vmin=None, vmax=None, coordinates=None, contour_args={},
+        number_args={}, ax=None, **kwargs):
     """Plots contour of spatial components against a background image and returns their coordinates
 
      Args:
@@ -1029,13 +1032,15 @@ def plot_contours(A, Cn, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9, dis
             color = kwargs[key]
             kwargs.pop(key)
 
-    ax = pl.gca()
+    if ax is None:
+        ax = pl.gca()
+
     if vmax is None and vmin is None:
-        pl.imshow(Cn, interpolation=None, cmap=cmap,
+        ax.imshow(Cn, interpolation=None, cmap=cmap,
                   vmin=np.percentile(Cn[~np.isnan(Cn)], 1),
                   vmax=np.percentile(Cn[~np.isnan(Cn)], 99))
     else:
-        pl.imshow(Cn, interpolation=None, cmap=cmap, vmin=vmin, vmax=vmax)
+        ax.imshow(Cn, interpolation=None, cmap=cmap, vmin=vmin, vmax=vmax)
 
     if coordinates is None:
         coordinates = get_contours(A, np.shape(Cn), thr, thr_method, swap_dim)
@@ -1043,7 +1048,11 @@ def plot_contours(A, Cn, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9, dis
         v = c['coordinates']
         c['bbox'] = [np.floor(np.nanmin(v[:, 1])), np.ceil(np.nanmax(v[:, 1])),
                      np.floor(np.nanmin(v[:, 0])), np.ceil(np.nanmax(v[:, 0]))]
-        pl.plot(*v.T, c=colors, **contour_args)
+
+        # TODO check that i wasn't using kwargs in a way way that should now be
+        # contour_args (my last commit before getting upstream changes had
+        # kwargs where contour_args is now)
+        ax.plot(*v.T, c=colors, **contour_args)
 
     if display_numbers:
         d1, d2 = np.shape(Cn)

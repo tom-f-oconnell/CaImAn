@@ -56,6 +56,7 @@ try:
 except:
     pass
 
+# TODO wth is this?
 try:
     profile
 except:
@@ -262,7 +263,6 @@ class CNMF(object):
             max_merge_area: int, optional
                 maximum area (in pixels) of merged components, used to determine whether to merge components during fitting process
         """
-
         self.dview = dview
 
         # these are movie properties that will be refactored into the Movie object
@@ -401,9 +401,11 @@ class CNMF(object):
         return cnm2
 
 
+
+    # TODO TODO what's the point of this function?
     def refit(self, images, dview=None):
         """
-        Refits the data using CNMF initialized from a previous interation
+        Refits the data using CNMF initialized from a previous iteration
 
         Args:
             images
@@ -414,15 +416,20 @@ class CNMF(object):
         """
         from copy import deepcopy
         cnm = CNMF(self.params.patch['n_processes'], params=self.params, dview=dview)
+        # TODO maybe these fns shouldn't change parameters w/o copying...
+        # user re-use params, and this would be unexpected
         cnm.params.patch['rf'] = None
         cnm.params.patch['only_init'] = False
         estimates = deepcopy(self.estimates)
+        # TODO what is this doing?
         estimates.select_components(use_object=True)
         estimates.coordinates = None
         cnm.estimates = estimates
         cnm.mmap_file = self.mmap_file
         return cnm.fit(images)
 
+    # TODO maybe just rename to something indicating it is just a xy roi, while
+    # we are at it. actually... why doesn't it seem to generalize to Z? make it?
     def fit(self, images, indices=(slice(None), slice(None))):
         """
         This method uses the cnmf algorithm to find sources in data.
@@ -451,9 +458,15 @@ class CNMF(object):
             indices = [indices]
         if isinstance(indices, tuple):
             indices = list(indices)
+
+        # Since time should be the first coordinate, this means use all time
+        # points.
         indices = [slice(None)] + indices
+        # TODO this seems to mean that a subregion can not also be defined in Z,
+        # whereas that's what indices is used for in x,y... generalize.
         if len(indices) < len(images.shape):
             indices = indices + [slice(None)]*(len(images.shape) - len(indices))
+        indices = tuple(indeces)
         dims_orig = images.shape[1:]
         dims_sliced = images[tuple(indices)].shape[1:]
 
@@ -467,6 +480,7 @@ class CNMF(object):
         #    self.estimates.dims = dims_sliced
 
         is_sliced = (dims_orig != dims_sliced)
+        # TODO maybe use rf==None in gui to grey out rest of patch params?
         if self.params.get('patch', 'rf') is None and (is_sliced or 'ndarray' in str(type(images))):
             images = images[tuple(indices)]
             self.dview = None
@@ -515,22 +529,54 @@ class CNMF(object):
         logging.info('using ' + str(self.params.get('spatial', 'block_size_spat')) + ' block_size_spat')
         logging.info('using ' + str(self.params.get('temporal', 'block_size_temp')) + ' block_size_temp')
 
+        # TODO TODO refactor s.t. patches case in handled more like recursion
+        # upon patch case? at least to some extent?
+        # it seems like the two cases have diverged a bit, and this would
+        # prevent that in the future
         if self.params.get('patch', 'rf') is None:  # no patches
             logging.info('preprocessing ...')
             Yr = self.preprocess(Yr)
             if self.estimates.A is None:
                 logging.info('initializing ...')
+                # TODO TODO make it easier to *actually* only_init (but
+                # including code that happens before init in fit, somehow, or
+                # just save all intermediate state variables of interest (for
+                # debugging)
                 self.initialize(Y)
+                # TODO TODO store history for all variables one might care
+                # about, not just A (if storing at all)
+                # TODO may want to invert slicing before saving any history that
+                # has sliced stuff...
+                # TODO TODO are any of these copies of A going to fail b/c it's
+                # actually scipy array? or is it not yet? maybe it should be
+                # anyway, and i should change the copy fn as appropriate?
 
+                # TODO assert correct type?
+                assert 'csc_matrix' in str(type(self.estimates.A))
+                self.A_init = self.estimates.A.copy()
+                self.A_spatial_update_k = []
+                self.A_after_merge_k = []
+                self.A_spatial_refinement_k = []
+                print('A type after init:', type(self.estimates.A))
+                print('A shape after init:', self.estimates.A.shape)
+
+            # TODO option to time each part of cnmf.fit
+
+            # TODO move this out of patch params. probably to initialization.
             if self.params.get('patch', 'only_init'):  # only return values after initialization
                 if not (self.params.get('init', 'method_init') == 'corr_pnr' and
                     self.params.get('init', 'ring_size_factor') is not None):
+                    # TODO why is this only done here??? i don't understand...
+                    # where are these even stored / used anyway?
                     self.compute_residuals(Yr)
                     self.estimates.bl = None
                     self.estimates.c1 = None
                     self.estimates.neurons_sn = None
 
-
+                # TODO and why should this happen in the "only_init" case...?
+                # not really only init-ing then, is it?
+                # TODO TODO why does this not seem to happen in no patches + no
+                # only_init case??? or in patches case, for that matter?
                 if self.remove_very_bad_comps:
                     logging.info('removing bad components : ')
                     final_frate = 10
@@ -550,34 +596,100 @@ class CNMF(object):
                            ' and discarding  ' + str(len(idx_components_bad))))
                     self.estimates.C = self.estimates.C[idx_components]
                     self.estimates.A = self.estimates.A[:, idx_components] # type: ignore # not provable that self.initialise provides a value
+                    # TODO what is this?? "trace residuals" (# components x T)
                     self.estimates.YrA = self.estimates.YrA[idx_components]
+
+                # TODO see note about is_sliced path below
 
                 self.estimates.normalize_components()
 
                 return self
 
+            # TODO TODO so is it really just one update_spatial and one
+            # update_temporal step? w/o even a parameter to do more than that?
+            # (pseudocode in 2014 paper says this should all be repeated till
+            # convergence! really that close to convergence after one step?)
+            # TODO as pseudocode in 2014 paper says, there is a median
+            # filtering step after update_spatial... is that in the end of
+            # update_spatial?
             logging.info('update spatial ...')
             self.update_spatial(Yr, use_init=True)
+            # TODO maybe do after update temporal too, if that isn't guaranteed
+            # not to try to change A (docs say it might...)?
+            print('A type after spatial:', type(self.estimates.A))
+            print('A shape after spatial:', self.estimates.A.shape)
+            # TODO TODO TODO fix steps setting self.estimates.A at this point,
+            # s.t. it is a csc_matrix as expected
+            try:
+                assert 'csc_matrix' in str(type(self.estimates.A))
+                self.A_spatial_update_k.append(self.estimates.A.copy())
+            except AssertionError:
+                # TODO maybe also assert numpy ndarray here?
+                self.A_spatial_update_k.append(scipy.sparse.csc_matrix(
+                    self.estimates.A))
 
             logging.info('update temporal ...')
             if not self.skip_refinement:
+                # TODO so why do we necessarily want p=0 for refinement? i don't
+                # get it... papers don't seem to discuss either
+
                 # set this to zero for fast updating without deconvolution
                 self.params.set('temporal', {'p': 0})
             else:
                 self.params.set('temporal', {'p': self.params.get('preprocess', 'p')})
                 logging.info('deconvolution ...')
 
+            # TODO if Yr doesn't ever change, why even pass it? shouldn't it
+            # just be a state variable of cnmf or something?
+            # TODO TODO use_init is true by default... should it be here?
+            # (it's not for final update_temporal after refinement, which seems
+            # like it is supposed to mirror this step...)
             self.update_temporal(Yr)
 
+            # TODO so is skip_refinement mostly referring to the merging step?
             if not self.skip_refinement:
                 logging.info('refinement...')
                 if self.params.get('merging', 'do_merge'):
                     logging.info('merging components ...')
+                    # TODO TODO why is this mx thing hardcoded to 50? what is
+                    # it? if it's always 50, why is it a kwarg?
+                    # TODO likewise, what is fast_merge?
+                    # TODO TODO does this include "removing overly weak
+                    # components" as in pseudocode in 2014 paper?
+                    # TODO or where (if anywhere) is there a size threshold in
+                    # this implementation?
                     self.merge_comps(Yr, mx=50, fast_merge=True, max_merge_area=self.params.get('merging', 'max_merge_area'))
+
+                    # TODO delete this csc_matrix check if it no longer applies
+                    # after merging upstream 2020-05-26. my code will still
+                    # depend on these other variables being added though, so
+                    # leave that unless i refactor.
+                    try:
+                        assert 'csc_matrix' in str(type(self.estimates.A))
+                        self.A_after_merge_k.append(self.estimates.A.copy())
+                    except AssertionError:
+                        self.A_after_merge_k.append(scipy.sparse.csc_matrix(
+                            self.estimates.A
+                        ))
 
                 logging.info('Updating spatial ...')
 
+                # TODO use_init? (delete this flag and Cin/f_in unless there is
+                # a very good reason. will need to refactor a little.)
                 self.update_spatial(Yr, use_init=False)
+
+                print('A type after refinement:', type(self.estimates.A))
+                print('A shape after refinement:', self.estimates.A.shape)
+                # TODO maybe do after update temporal too, if that isn't
+                # guaranteed not to try to change A (docs say it might...)?
+                # TODO TODO or maybe at least assert other steps don't change A?
+                try:
+                    assert 'csc_matrix' in str(type(self.estimates.A))
+                    self.A_spatial_refinement_k.append(self.estimates.A.copy())
+                except AssertionError:
+                    self.A_spatial_refinement_k.append(scipy.sparse.csc_matrix(
+                        self.estimates.A))
+
                 # set it back to original value to perform full deconvolution
                 self.params.set('temporal', {'p': self.params.get('preprocess', 'p')})
                 logging.info('update temporal ...')
@@ -588,10 +700,15 @@ class CNMF(object):
 
             # embed in the whole FOV
             if is_sliced:
+                # TODO wouldn't we also want to do this in only_init case?
+                # shouldn't it just always happen before return?
+                # TODO maybe factor this into a function? push into update
+                # spatial?
                 FOV = np.zeros(dims_orig, order='C')
                 FOV[indices[1:]] = 1
                 FOV = FOV.flatten(order='F')
                 ind_nz = np.where(FOV>0)[0].tolist()
+                # TODO is it really not already?
                 self.estimates.A = self.estimates.A.tocsc()
                 A_data = self.estimates.A.data
                 A_ind = np.array(ind_nz)[self.estimates.A.indices]
@@ -624,6 +741,7 @@ class CNMF(object):
 
             self.estimates.bl, self.estimates.c1, self.estimates.g, self.estimates.neurons_sn = None, None, None, None
             logging.info("merging")
+            # TODO TODO what is the meaning of this?
             self.estimates.merged_ROIs = [0]
 
 
@@ -643,6 +761,7 @@ class CNMF(object):
                     logging.info("update temporal")
                     self.update_temporal(Yr, use_init=False)
                 else:
+                    # TODO huh?
                     while len(self.estimates.merged_ROIs) > 0:
                         self.merge_comps(Yr, mx=np.Inf, fast_merge=True)
                         #if len(self.estimates.merged_ROIs) > 0:
@@ -656,7 +775,9 @@ class CNMF(object):
                             self.params.get('init', 'ring_size_factor') *
                             self.params.get('init', 'gSiz')[0],
                             ssub=self.params.get('init', 'ssub_B'))
+
                     if len(self.estimates.C):
+                        # TODO why is this only in the path w/ patches??
                         self.deconvolve()
                     else:
                         self.estimates.S = self.estimates.C
@@ -678,11 +799,11 @@ class CNMF(object):
             filename: str
                 path to the hdf5 file containing the saved object
         '''
-
         if '.hdf5' in filename:
             save_dict_to_hdf5(self.__dict__, filename)
         else:
             raise Exception("Filename not supported")
+
 
     def remove_components(self, ind_rm):
         """
@@ -692,7 +813,6 @@ class CNMF(object):
             ind_rm :    list
                         indices of components to be removed
         """
-
         self.estimates.Ab, self.estimates.Ab_dense, self.estimates.CC, self.estimates.CY, self.M,\
             self.N, self.estimates.noisyC, self.estimates.OASISinstances, self.estimates.C_on,\
             expected_comps, self.ind_A,\
@@ -703,6 +823,7 @@ class CNMF(object):
                 self.estimates.noisyC, self.estimates.OASISinstances, self.estimates.C_on,
                 self.params.get('online', 'expected_comps'))
         self.params.set('online', {'expected_comps': expected_comps})
+
 
     def compute_residuals(self, Yr):
         """
@@ -747,7 +868,6 @@ class CNMF(object):
         """Performs deconvolution on already extracted traces using
         constrained foopsi.
         """
-
         p = self.params.get('preprocess', 'p') if p is None else p
         method_deconvolution = (self.params.get('temporal', 'method_deconvolution')
                 if method_deconvolution is None else method_deconvolution)
@@ -794,6 +914,7 @@ class CNMF(object):
         self.estimates.lam = [results[8][i] for i in order]
         self.estimates.YrA = F - self.estimates.C
         return self
+
 
     def HALS4traces(self, Yr, groups=None, use_groups=False, order=None,
                     update_bck=True, bck_non_neg=True, **kwargs):
@@ -853,6 +974,8 @@ class CNMF(object):
             self.estimates.YrA = noisyC - self.estimates.C
         return self
 
+
+    # TODO is this ever used? where? (it's not. not in this package at least.)
     def HALS4footprints(self, Yr, update_bck=True, num_iter=2):
         """Uses hierarchical alternating least squares to update shapes and
         background
@@ -892,6 +1015,7 @@ class CNMF(object):
 
         return self
 
+
     def update_temporal(self, Y, use_init=True, **kwargs):
         """Updates temporal components
 
@@ -911,7 +1035,8 @@ class CNMF(object):
             kwargs_new.update(kwargs)
         self.params.set('temporal', kwargs_new)
 
-
+        # TODO and why is this returning spatial stuff too? what is it actually
+        # changing?
         self.estimates.C, self.estimates.A, self.estimates.b, self.estimates.f, self.estimates.S, \
         self.estimates.bl, self.estimates.c1, self.estimates.neurons_sn, \
         self.estimates.g, self.estimates.YrA, self.estimates.lam = update_temporal_components(
@@ -920,6 +1045,11 @@ class CNMF(object):
         self.estimates.R = self.estimates.YrA
         return self
 
+
+    # TODO TODO i feel like this use_init flag should be deleted. updates should
+    # always apply to current C / f and Cin / f_in should only be special in
+    # that they are the first values for C / f... reasons for keeping it this
+    # way?
     def update_spatial(self, Y, use_init=True, **kwargs):
         """Updates spatial components
 
@@ -930,9 +1060,13 @@ class CNMF(object):
                 use Cin, f_in for computing A, b otherwise use C, f
 
         Returns:
+        # TODO TODO why would this "possibly" modify C and f??? under what
+        # circumstances? absolutely necessary?
             self
                 modified values self.estimates.A, self.estimates.b possibly self.estimates.C, self.estimates.f
         """
+        # TODO whyyyy are they doing this magic? inspecting the signature of
+        # THIS fn?
         lc = locals()
         pr = inspect.signature(self.update_spatial)
         params = [k for k, v in pr.parameters.items() if '=' in str(v)]
@@ -946,12 +1080,15 @@ class CNMF(object):
         for key in kwargs_new:
             if hasattr(self, key):
                 setattr(self, key, kwargs_new[key])
+
+        # TODO why does update_spatial_components even return C and f???
         self.estimates.A, self.estimates.b, self.estimates.C, self.estimates.f =\
             update_spatial_components(Y, C=self.estimates.C, f=self.estimates.f, A_in=self.estimates.A,
                                       b_in=self.estimates.b, dview=self.dview,
                                       sn=self.estimates.sn, dims=self.dims, **self.params.get_group('spatial'))
 
         return self
+
 
     def merge_comps(self, Y, mx=50, fast_merge=True, max_merge_area=None):
         """merges components
@@ -969,9 +1106,11 @@ class CNMF(object):
 
         return self
 
+
     def initialize(self, Y, **kwargs):
         """Component initialization
         """
+        # TODO whyyy? just set parameters in one place ffs
         self.params.set('init', kwargs)
         estim = self.estimates
         if (self.params.get('init', 'method_init') == 'corr_pnr' and
@@ -983,6 +1122,7 @@ class CNMF(object):
             try:
                 estim.S, estim.bl, estim.c1, estim.neurons_sn, \
                     estim.g, estim.YrA, estim.lam = extra_1p
+            # TODO specify type of exception! probably AttributeError?
             except:
                 estim.S, estim.bl, estim.c1, estim.neurons_sn, \
                     estim.g, estim.YrA, estim.lam, estim.W, estim.b0 = extra_1p
@@ -994,6 +1134,7 @@ class CNMF(object):
         self.estimates = estim
 
         return self
+
 
     def preprocess(self, Yr):
         """
@@ -1112,3 +1253,4 @@ def load_CNMF(filename, n_processes=1, dview=None):
         raise NotImplementedError('unsupported file extension')
 
     return new_obj
+

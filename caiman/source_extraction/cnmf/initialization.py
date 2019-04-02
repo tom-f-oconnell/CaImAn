@@ -216,6 +216,13 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         img: optional [np 2d array]
             Image with which to normalize. If not present use the mean + offset
 
+        # TODO check that their new format here didn't break my docstring
+        # parsing stuff (previously the commented line below is what i had.
+        # might still be necessary to specify type like that to satisfy my
+        # docstring parsing stuff)
+        #method_init: str
+
+        # TODO document other methods
         method_init: {'greedy_roi', 'corr_pnr', 'sparse_nmf', 'graph_nmf', 'pca_ica'}
             Initialization method (default: 'greedy_roi')
 
@@ -286,6 +293,8 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     if method == 'local_nmf':
         tsub_lnmf = tsub
         ssub_lnmf = ssub
+        # TODO TODO does this mean local_nmf prevents any downsampling from
+        # happening? some explanation for this choice?
         tsub = 1
         ssub = 1
 

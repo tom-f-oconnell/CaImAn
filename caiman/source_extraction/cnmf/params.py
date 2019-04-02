@@ -109,7 +109,10 @@ class CNMFParams(object):
                 Delete duplicate components in the overlaping regions between neighboring patches. If False,
                 then merging is used.
 
-            only_init: bool, default: True
+            # TODO rename back to only_init, b/c it isn't only affecting patch
+            # codepaths
+            # TODO why the fuck is this True by default? no updating??
+            only_init_patch: bool, default: True
                 whether to run only the initialization
 
             p_patch: int, default: 0
@@ -118,7 +121,7 @@ class CNMFParams(object):
             skip_refinement: bool, default: False
                 Whether to skip refinement of components (deprecated?)
 
-            remove_very_bad_comps: bool, default: True
+            remove_very_bad_comps: bool, default: False
                 Whether to remove (very) bad quality components during patch processing
 
             p_ssub: float, default: 2
@@ -218,7 +221,7 @@ class CNMFParams(object):
             maxIter: int, default: 5
                 number of HALS iterations during initialization
 
-            method_init: 'greedy_roi'|'greedy_pnr'|'sparse_NMF'|'local_NMF', default: 'greedy_roi'
+            method_init: 'greedy_roi'|'corr_pnr'|'sparse_nmf'|'local_nmf'|'pca_ica', default: 'greedy_roi'
                 initialization method. use 'greedy_pnr' for 1p processing and 'sparse_NMF' for dendritic processing.
 
             min_corr: float, default: 0.85
@@ -667,6 +670,7 @@ class CNMFParams(object):
 
         self.preprocess = {
             'check_nan': check_nan,
+            # TODO why not? set based on ballpark known indicator behavior?
             'compute_g': False,          # flag for estimating global time constant
             'include_noise': False,      # flag for using noise values when estimating g
             # number of autocovariance lags to be considered for time constant estimation
@@ -881,6 +885,13 @@ class CNMFParams(object):
             'reuse_model': False                # reuse an already trained model
         }
 
+        # TODO TODO maybe make some 'general' param group that includes things
+        # like verbosity / debug level / use_cuda, etc
+        # TODO move skip_refinement either there or to merge (that's what
+        # refinement *is*, right?)
+        # TODO TODO is there not a parameter for "indeces" (to run on
+        # rectangular subset of data)? if not, make one.
+        
         self.change_params(params_dict)
 
 
@@ -948,6 +959,7 @@ class CNMFParams(object):
                     else:
                         raise ValueError(a + ' has to be a tuple of length 3 for volumetric 3D data')
 
+
     def set(self, group, val_dict, set_if_not_exists=False, verbose=False):
         """ Add key-value pairs to a group. Existing key-value pairs will be overwritten
             if specified in val_dict, but not deleted.
@@ -982,6 +994,7 @@ class CNMFParams(object):
                         "Changing key {0} in group {1} from {2} to {3}".format(k, group, d[k], v))
                 d[k] = v
 
+
     def get(self, group, key):
         """ Get a value for a given group and key. Raises an exception if no such group/key combination exists.
 
@@ -1001,6 +1014,7 @@ class CNMFParams(object):
 
         return d[key]
 
+
     def get_group(self, group):
         """ Get the dictionary of key-value pairs for a group.
 
@@ -1013,6 +1027,8 @@ class CNMFParams(object):
 
         return getattr(self, group)
 
+
+    # TODO provide a diff fn w/ a verbose/debug option and use that for __eq__?
     def __eq__(self, other):
 
         if type(other) != CNMFParams:
@@ -1033,17 +1049,32 @@ class CNMFParams(object):
 
         return True
 
+
+    # TODO provide either a copy constructor or a copy fn?
+
+
     def to_dict(self):
         """
         Returns the params class as a dictionary with subdictionaries for each
         category.
         """
         # TODO why the _params for just some? inconsistent...
-        return {'data': self.data, 'spatial_params': self.spatial, 'temporal_params': self.temporal,
-                'init_params': self.init, 'preprocess_params': self.preprocess,
-                'patch_params': self.patch, 'online': self.online, 'quality': self.quality,
-                'merging': self.merging, 'motion': self.motion, 'ring_CNN': self.ring_CNN
-                }
+        # TODO TODO update my gui param handling code to deal w/ new ring_CNN
+        # group, if need be
+        return {
+            'data': self.data,
+            'spatial_params': self.spatial,
+            'temporal_params': self.temporal,
+            'init_params': self.init,
+            'preprocess_params': self.preprocess,
+            'patch_params': self.patch,
+            'online': self.online,
+            'quality': self.quality,
+            'merging': self.merging,
+            'motion': self.motion,
+            'ring_CNN': self.ring_CNN
+        }
+
 
     def __repr__(self):
 
@@ -1113,6 +1144,7 @@ class CNMFParams(object):
     # TODO TODO add methods to make params de/serializable from/to pickle?
     # TODO and make both methods take an (optional) file-like object, so they
     # can write to a data string or something (for insertion into db)?
+
 
 class CNMFParamJSONEncoder(json.JSONEncoder):
     def default(self, obj):

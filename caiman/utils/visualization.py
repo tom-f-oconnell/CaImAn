@@ -345,7 +345,16 @@ def get_contours(A, dims, thr=0.9, thr_method='nrg', swap_dim=False):
     """
 
     if 'csc_matrix' not in str(type(A)):
-        A = csc_matrix(A)
+        # TODO delete try/except after debugging error in conversion
+        try:
+            A = csc_matrix(A)
+        except ValueError:
+            # TODO TODO fix whatever caused A to be a numpy array HOLDING one
+            # sparse array, rather than either a sparse array or a numpy array
+            print(type(A))
+            print(A.shape)
+            import ipdb; ipdb.set_trace()
+
     d, nr = np.shape(A)
     # if we are on a 3D video
     if len(dims) == 3:
@@ -805,7 +814,9 @@ def nb_plot_contour(image, A, d1, d2, thr=None, thr_method='max', maxthr=0.2, nr
               line_color=line_color, line_width=2, **kwargs)
     if show:
         bpl.show(p)
+
     return p
+
 
 def playMatrix(mov, gain=1.0, frate=.033):
     for frame in mov:
@@ -818,6 +829,7 @@ def playMatrix(mov, gain=1.0, frate=.033):
             cv2.destroyAllWindows()
             break
     cv2.destroyAllWindows()
+
 
 def matrixMontage(spcomps, *args, **kwargs):
     numcomps, _, _ = spcomps.shape
@@ -973,6 +985,7 @@ def view_patches_bar(Yr, A, C, b, f, d1, d2, YrA=None, img=None):
 
 # TODO fix possible error upstream has introduced by using mutable defaults for
 # kwargs (only ever one set produced if not redefined, i think)
+# TODO rename from Cn. it's confusing w/ other C variable
 def plot_contours(A, Cn, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9,
         display_numbers=True, max_number=None, cmap=None, swap_dim=False,
         colors='w', vmin=None, vmax=None, coordinates=None, contour_args={},
@@ -1067,6 +1080,8 @@ def plot_contours(A, Cn, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9,
                 ax.text(cm[i, 1], cm[i, 0], str(i + 1), color=colors, **number_args)
     return coordinates
 
+
+# TODO what is this for (doesn't seem to be used anywhere... delete?)
 def plot_shapes(Ab, dims, num_comps=15, size=(15, 15), comps_per_row=None,
                 cmap='viridis', smoother=lambda s: median_filter(s, 3)):
 
@@ -1160,3 +1175,4 @@ def inspect_correlation_pnr(correlation_image_pnr, pnr_image):
     s_cn_min.on_changed(update)
     s_pnr_max.on_changed(update)
     s_pnr_min.on_changed(update)
+

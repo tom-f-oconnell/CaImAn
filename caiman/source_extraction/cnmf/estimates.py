@@ -167,6 +167,7 @@ class Estimates(object):
 
     # TODO refactor this (and / or visualization fn) to take ax, if this is
     # going to be useful at all
+    # TODO see if changing thr from a str ('0.2') broke anything
     def plot_contours(self, img=None, idx=None, crd=None, thr_method='max',
                       thr='0.2', display_numbers=True, params=None,
                       cmap='viridis', ax=None, **kwargs):
@@ -189,10 +190,15 @@ class Estimates(object):
             params : params object
                 set of dictionary containing the various parameters
         """
+        # TODO A's type should probably just be set appropriately elsewhere,
+        # right??? 
         if 'csc_matrix' not in str(type(self.A)):
             self.A = scipy.sparse.csc_matrix(self.A)
         if img is None:
             img = np.reshape(np.array(self.A.mean(1)), self.dims, order='F')
+
+        # TODO just use the coordinates returned by the visualization
+        # plot_contours call for this?
         if self.coordinates is None:  # not hasattr(self, 'coordinates'):
             # TODO does this call mpl stuff?
             # TODO check that my old code didn't depend on me setting self.dims,
@@ -216,6 +222,10 @@ class Estimates(object):
                                params.quality['rval_thr'],
                                int(params.quality['use_cnn'])))
         if idx is None:
+            # TODO what are coordinates used for? as far as i can tell, A is all
+            # the relevant information...
+            # TODO TODO shouldn't this use the same thr / thr_method??
+            # (or is that just for get_contours?)
             caiman.utils.visualization.plot_contours(
                 self.A,
                 img,
@@ -239,6 +249,7 @@ class Estimates(object):
             # TODO this path would normally make multiple plots. put on same ax
             # if passed in.
             plt.subplot(1, 2, 1)
+            # TODO TODO shouldn't these use the same thr / thr_method??
             caiman.utils.visualization.plot_contours(
                 self.A[:, idx],
                 img,
@@ -874,6 +885,9 @@ class Estimates(object):
             use_object: bool
                 Flag to use self.idx_components for reading the indices.
 
+            # TODO i feel like maybe this should just always be true. and in
+            # general everything that the user can change should have its
+            # changes stored for reproducibility
             save_discarded_components: bool
                 whether to save the components from initialization so that they can be restored using the restore_discarded_components method
 

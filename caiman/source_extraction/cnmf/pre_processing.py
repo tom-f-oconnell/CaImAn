@@ -58,6 +58,8 @@ def interpolate_missing_data(Y):
             n_nans = np.where(~np.isnan(row))[0]
             coor.append((idx, nans))
             Y[idx, nans] = np.interp(nans, n_nans, row[n_nans])
+        # TODO so should this just be a notimplemented error? why only if there
+        # actually are NaN?
         raise Exception(
             'The algorithm has not been tested with missing values (NaNs). Remove NaNs and rerun the algorithm.')
 
@@ -161,16 +163,22 @@ def get_noise_fft(Y, noise_range=[0.25, 0.5], noise_method='logmexp', max_num_sa
         sn: np.ndarray
             Noise level for each pixel
     """
+    # TODO so when images are reshaped in cnmf.py, time dimension is moved to
+    # the end? why change convention? check this is correct.
     T = Y.shape[-1]
     # Y=np.array(Y,dtype=np.float64)
 
     if T > max_num_samples_fft:
+        # TODO why not random sampling? need sequential frames?
+        # TODO maybe make this mess more clear
         Y = np.concatenate((Y[..., 1:max_num_samples_fft // 3 + 1],
                             Y[..., np.int(T // 2 - max_num_samples_fft / 3 / 2)
                                           :np.int(T // 2 + max_num_samples_fft / 3 / 2)],
                             Y[..., -max_num_samples_fft // 3:]), axis=-1)
         T = np.shape(Y)[-1]
 
+    # TODO clarify in docstring what they mean by "compared to Nyquist rate"
+    # and maybe also clarify code wrt where Nyquist rate comes in
     # we create a map of what is the noise on the FFT space
     ff = np.arange(0, 0.5 + 1. / T, 1. / T)
     ind1 = ff > noise_range[0]
@@ -536,6 +544,8 @@ def preprocess_data(Y, sn=None, dview=None, n_pixels_per_process=100,
         sn_s: ndarray (memory mapped)
             file where to store the results of computation.
     """
+    # TODO update returns bit in docstring. no psx + order changed.
+    # TODO doc sn = "noise level" per pixel
 
     if check_nan:
         Y, coor = interpolate_missing_data(Y)
@@ -559,3 +569,4 @@ def preprocess_data(Y, sn=None, dview=None, n_pixels_per_process=100,
 
     # psx  # no need to keep psx in memory as long a we don't use it elsewhere
     return Y, sn, g, None
+

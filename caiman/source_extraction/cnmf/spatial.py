@@ -291,6 +291,17 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
             b = np.fmax(np.linalg.solve(f.dot(f.T), Y_resf.T), 0).T
         else:
             ind_b = [np.where(_b)[0] for _b in b_in.T]
+            # TODO TODO what is causing problem here? one of these args not of
+            # correct dimensions?
+            # w/ 2019-02-27/4/_003 data ~ 8:40 am 4/2/19
+            print(type(Y_resf))
+            print(Y_resf.shape)
+            print(type(b_in))
+            print(b_in.shape)
+            print(type(f))
+            print(f.shape)
+            print(type(ind_b))
+            print(ind_b.shape)
             b = HALS4shape_bckgrnd(Y_resf, b_in, f, ind_b)
 
     else:

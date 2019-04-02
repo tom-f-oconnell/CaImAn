@@ -349,6 +349,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
             logging.info('Refining Components using HALS NMF iterations')
             Ain, Cin, b_in, f_in = hals(
                 Y_ds, Ain, Cin, b_in, f_in, maxIter=maxIter)
+
     elif method == 'corr_pnr':
         Ain, Cin, _, b_in, f_in, extra_1p = greedyROI_corr(
             Y, Y_ds, max_number=K, gSiz=gSiz[0], gSig=gSig[0], min_corr=min_corr, min_pnr=min_pnr,
@@ -754,8 +755,8 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1,
         nb: int
             Number of background components
 
-        rolling_max: boolean
-            Detect new components based on a rolling sum of pixel activity (default: True)
+        rolling_sum: boolean
+            Detect new components based on a rolling sum of pixel activity (default: False)
 
         rolling_length: int
             Length of rolling window (default: 100)

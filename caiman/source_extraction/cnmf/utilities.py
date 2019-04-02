@@ -293,6 +293,7 @@ def extract_DF_F(Yr, A, C, bl, quantileMin=8, frames_window=200, block_size=400,
 
     return C_df
 
+
 def detrend_df_f(A, b, C, f, YrA=None, quantileMin=8, frames_window=500, 
                  flag_auto=True, use_fast=False, detrend_only=False):
     """ Compute DF/F signal without using the original data.
@@ -368,6 +369,8 @@ def detrend_df_f(A, b, C, f, YrA=None, quantileMin=8, frames_window=500,
     B = A.T.dot(b).dot(f)
     T = C.shape[-1]
 
+    # TODO TODO how does this differ from detrend_df_f_auto?
+    # why does that just call this w/ flag_auto set to True?
     if flag_auto:
         data_prct, val = df_percentile(F[:, :frames_window], axis=1)
         if frames_window is None or frames_window > T:
@@ -418,6 +421,7 @@ def detrend_df_f(A, b, C, f, YrA=None, quantileMin=8, frames_window=500,
 
     return F_df
 
+
 def fast_prct_filt(input_data, level=8, frames_window=1000):
     """
     Fast approximate percentage filtering
@@ -449,6 +453,8 @@ def fast_prct_filt(input_data, level=8, frames_window=1000):
         data -= tr_BL[padbefore:-padafter].T
 
     return data.squeeze()
+
+
 #%%
 def detrend_df_f_auto(A, b, C, f, dims=None, YrA=None, use_annulus = True, 
                       dist1 = 7, dist2 = 5, frames_window=1000, 
@@ -552,9 +558,8 @@ def detrend_df_f_auto(A, b, C, f, dims=None, YrA=None, use_annulus = True,
 
     return F_df
 
+
 #%%
-
-
 def manually_refine_components(Y, xxx_todo_changeme, A, C, Cn, thr=0.9, display_numbers=True,
                                max_number=None, cmap=None, **kwargs):
     """Plots contour of spatial components

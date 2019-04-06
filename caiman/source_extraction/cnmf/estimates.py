@@ -271,6 +271,7 @@ class Estimates(object):
             plt.title('Rejected Components')
         return self
 
+
     def plot_contours_nb(self, img=None, idx=None, crd=None, thr_method='max',
                          thr=0.2, params=None, line_color='white', cmap='viridis'):
         """view contours of all spatial footprints (notebook environment).
@@ -355,6 +356,7 @@ class Estimates(object):
                                thr=thr, params=params, cmap=cmap)
         return self
 
+
     def view_components(self, Yr=None, img=None, idx=None):
         """view spatial and temporal components interactively
 
@@ -393,6 +395,7 @@ class Estimates(object):
                                                         self.C[idx], self.b, self.f,
                                                         self.dims[0], self.dims[1], YrA=self.R[idx], img=img)
         return self
+
 
     def nb_view_components(self, Yr=None, img=None, idx=None,
                            denoised_color=None, cmap='jet', thr=0.99):
@@ -581,6 +584,7 @@ class Estimates(object):
         return mov
 
 
+    # TODO maybe this should be in the visualization module?
     def play_movie(self, imgs, q_max=99.75, q_min=2, gain_res=1,
                    magnification=1, include_bck=True,
                    frame_range=slice(None, None, None),
@@ -748,6 +752,7 @@ class Estimates(object):
 
         return mov
 
+
     def compute_residuals(self, Yr):
         """compute residual for each component (variable R)
 
@@ -782,6 +787,7 @@ class Estimates(object):
 
         return self
 
+
     def detrend_df_f(self, quantileMin=8, frames_window=500,
                      flag_auto=True, use_fast=False, use_residuals=True,
                      detrend_only=False):
@@ -789,7 +795,7 @@ class Estimates(object):
         caiman.source.extraction.utilities.detrend_df_f for details
 
         Args:
-            quantile_min: float
+            quantileMin: float
                 quantile used to estimate the baseline (values in [0,100])
 
             frames_window: int
@@ -819,6 +825,10 @@ class Estimates(object):
             logging.warning("There are no components for DF/F extraction!")
             return self
 
+        # TODO TODO TODO are most of assignments supposed to be to self.R????
+        # because the **local** R is not used in the remainder of this fn...
+        # TODO i suppose they meant to use this R in place of self.YrA as the
+        # 5th arg to detrend_df_f?
         if use_residuals:
             if self.R is None:
                 if self.YrA is None:
@@ -837,6 +847,8 @@ class Estimates(object):
                                   detrend_only=detrend_only)
         return self
 
+
+    # TODO when is this used? when should it be used?
     def normalize_components(self):
         """ Normalizes components such that spatial components have l_2 norm 1
         """
@@ -871,6 +883,7 @@ class Estimates(object):
             self.b = self.b * nB_inv_mat
             self.f = nB_mat * self.f
         return self
+
 
     def select_components(self, idx_components=None, use_object=False, save_discarded_components=True):
         """Keeps only a selected subset of components and removes the rest.
@@ -939,6 +952,7 @@ class Estimates(object):
 
         return self
 
+
     def restore_discarded_components(self):
         ''' Recover components that are filtered out with the select_components method
         '''
@@ -967,6 +981,7 @@ class Estimates(object):
 
             self.nr = self.A.shape[-1]
 
+
     def evaluate_components_CNN(self, params, neuron_class=1):
         """Estimates the quality of inferred spatial components using a
         pretrained CNN classifier.
@@ -988,6 +1003,7 @@ class Estimates(object):
         self.cnn_preds = predictions[:, neuron_class]
         self.idx_components = np.where(self.cnn_preds >= min_cnn_thr)[0]
         return self
+
 
     def evaluate_components(self, imgs, params, dview=None):
         """Computes the quality metrics for each component and stores the
@@ -1064,6 +1080,7 @@ class Estimates(object):
                                                               idx_ecc))
             self.idx_components = np.intersect1d(self.idx_components, idx_ecc)
         return self
+
 
     def filter_components(self, imgs, params, new_dict={}, dview=None, select_mode='All'):
         """Filters components based on given thresholds without re-computing
@@ -1398,6 +1415,9 @@ class Estimates(object):
         else:
             print('A_thr already computed. If you want to recompute set self.A_thr to None')
 
+
+    # TODO what uses this? actually make sure this is run (at least once at the
+    # end) of the (no patch, not only_init) path
     def remove_small_large_neurons(self, min_size_neuro, max_size_neuro,
                                    select_comp=False):
         ''' remove neurons that are too large or too small
@@ -1429,7 +1449,6 @@ class Estimates(object):
         if select_comp:
             self.select_components(use_object=True)
         return neurons_to_keep
-
 
 
     def remove_duplicates(self, predictions=None, r_values=None, dist_thr=0.1,
@@ -1481,6 +1500,7 @@ class Estimates(object):
             self.select_components(use_object=True)
 
         return components_to_keep
+
 
     def masks_2_neurofinder(self, dataset_name):
         """Return masks to neurofinder format

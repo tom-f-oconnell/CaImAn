@@ -310,6 +310,44 @@ class CNMF(object):
         self.estimates = Estimates(A=Ain, C=Cin, b=b_in, f=f_in,
                                    dims=self.params.data['dims'])
 
+
+    # TODO replace indeces in any calling code of mine w/ indices
+    # (upstream fixed the typo)
+    @staticmethod
+    def get_sliced_movie(images, indices=[slice(None), slice(None)]):
+        if isinstance(indices, slice):
+            indices = [indices]
+        # Since time should be the first coordinate, this means use all time
+        # points.
+        indices = [slice(None)] + indices
+        # TODO this seems to mean that a subregion can not also be defined in Z,
+        # whereas that's what indices is used for in x,y... generalize.
+        if len(indices) < len(images.shape):
+            indices = indices + [slice(None)]*(len(images.shape) - len(indices))
+        indices = tuple(indices)
+        return images[indices]
+
+
+    # TODO maybe move outside cnmf? utilities?
+    # TODO also include slicing step?
+    @staticmethod
+    def get_Y(images):
+        """
+        """
+        dims = images.shape[1:]
+        Y = np.transpose(images, list(range(1, len(dims) + 1)) + [0])
+        return Y
+
+
+    @staticmethod
+    def get_Yr(images):
+        """
+        """
+        T = images.shape[0]
+        Yr = np.transpose(np.reshape(images, (T, -1), order='F'))
+        return Yr
+
+
     # TODO this should take a filename / fnames directly if fit( takes array
     # , i think
     def fit_file(self, motion_correct=False, indices=None, include_eval=False):
@@ -430,6 +468,7 @@ class CNMF(object):
 
     # TODO maybe just rename to something indicating it is just a xy roi, while
     # we are at it. actually... why doesn't it seem to generalize to Z? make it?
+    # (above comment still relevant?)
     def fit(self, images, indices=(slice(None), slice(None))):
         """
         This method uses the cnmf algorithm to find sources in data.
@@ -468,6 +507,9 @@ class CNMF(object):
             indices = indices + [slice(None)]*(len(images.shape) - len(indices))
         indices = tuple(indeces)
         dims_orig = images.shape[1:]
+        # TODO check this old line of mine didn't break as i applied upstream
+        # changes...
+        images = self.get_sliced_movie(images, indices=indices)
         dims_sliced = images[tuple(indices)].shape[1:]
 
         # TODO maybe it should *always* reset dims? (refers to now commented
@@ -482,18 +524,34 @@ class CNMF(object):
         is_sliced = (dims_orig != dims_sliced)
         # TODO maybe use rf==None in gui to grey out rest of patch params?
         if self.params.get('patch', 'rf') is None and (is_sliced or 'ndarray' in str(type(images))):
+            # (below comment and commented line seemed to be in my last version
+            # of this? just here for reference)
+            # TODO shouldn't it just always be sliced? isn't that the point of
+            # their choice of default indeces kwarg?
+            #####images = images[indeces]
+
+            # TODO check this upstream line isn't behaving worse than my
+            # get_sliced_movie call, and maybe delete this line in favor it that
+            # get_sliced_movie call above
             images = images[tuple(indices)]
+
             self.dview = None
+            # TODO maybe this should be an error when appropriate?? (if "not
+            # available"...)
             logging.info("Parallel processing in a single patch "
                             "is not available for loaded in memory or sliced" +
                             " data.")
 
+        Y = self.get_Y(images)
+        Yr = self.get_Yr(images)
+
         T = images.shape[0]
+        # TODO really need to change the params here like this?
         self.params.set('online', {'init_batch': T})
         self.dims = images.shape[1:]
         #self.params.data['dims'] = images.shape[1:]
-        Y = np.transpose(images, list(range(1, len(self.dims) + 1)) + [0])
-        Yr = np.transpose(np.reshape(images, (T, -1), order='F'))
+
+        # TODO is this not always false be setting order='F' in the line above?
         if np.isfortran(Yr):
             raise Exception('The file is in F order, it should be in C order (see save_memmap function)')
 
@@ -792,7 +850,7 @@ class CNMF(object):
         return self
 
 
-    def save(self,filename):
+    def save(self, filename):
         '''save object in hdf5 file format
 
         Args:

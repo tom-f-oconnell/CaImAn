@@ -220,14 +220,18 @@ def dict_compare(d1, d2):
     return added, removed, modified, same
 
 
+# TODO this doesn't seem to be used anywhere? delete? same default args too...
+# and not using others as kwargs
 def computeDFF_traces(Yr, A, C, bl, quantileMin=8, frames_window=200):
     extract_DF_F(Yr, A, C, bl, quantileMin, frames_window)
 
 
+# TODO consistent case on df_f between this and detrend...
+# TODO change all camelCase to underscored
 def extract_DF_F(Yr, A, C, bl, quantileMin=8, frames_window=200, block_size=400, dview=None):
     """ Compute DFF function from cnmf output.
 
-     Disclaimer: it might be memory inefficient
+    Disclaimer: it might be memory inefficient
 
     Args:
         Yr: ndarray (2D)
@@ -255,6 +259,13 @@ def extract_DF_F(Yr, A, C, bl, quantileMin=8, frames_window=200, block_size=400,
     See Also:
         ..image::docs/img/onlycnmf.png
     """
+    # TODO TODO how should dff actually be defined? should the delta really just
+    # be the derivative, or should the delta just be computed relative to the
+    # baseline?
+    # TODO where is the derivative actually calculated anyway?
+
+    # TODO what is this nA thing? for normalizing (each?) footprint(s) (in) A or
+    # something?
     nA = np.array(np.sqrt(A.power(2).sum(0)).T)
     A = scipy.sparse.coo_matrix(A / nA.T)
     C = C * nA
@@ -263,6 +274,8 @@ def extract_DF_F(Yr, A, C, bl, quantileMin=8, frames_window=200, block_size=400,
 
     T = C.shape[-1]
     if 'memmap' in str(type(Yr)):
+        # TODO why does this still use the parallel_dot_product if just one
+        # thread?
         if block_size >= 500:
             print('Forcing single thread for memory issues')
             dview_res = None
@@ -275,6 +288,7 @@ def extract_DF_F(Yr, A, C, bl, quantileMin=8, frames_window=200, block_size=400,
     else:
         AY = A.T.dot(Yr)
 
+    # TODO what does slicing w/ None do? same as :?
     bas_val = bl[None, :]
     Bas = np.repeat(bas_val, T, 0).T
     AA = A.T.dot(A)
@@ -282,6 +296,7 @@ def extract_DF_F(Yr, A, C, bl, quantileMin=8, frames_window=200, block_size=400,
     Cf = (C - Bas) * (nA**2)
     C2 = AY - AA.dot(C)
 
+    # TODO maybe frames_window > T should just be an error, to be clear?
     if frames_window is None or frames_window > T:
         Df = np.percentile(C2, quantileMin, axis=1)
         C_df = Cf / Df[:, None]
@@ -357,6 +372,8 @@ def detrend_df_f(A, b, C, f, YrA=None, quantileMin=8, frames_window=500,
     if 'array' not in str(type(f)):
         f = f.toarray()
 
+    # TODO the ravel isn't supposed to be before the sum?
+    # TODO why axis 0?
     nA = np.sqrt(np.ravel(A.power(2).sum(axis=0)))
     nA_mat = scipy.sparse.spdiags(nA, 0, nA.shape[0], nA.shape[0])
     nA_inv_mat = scipy.sparse.spdiags(1. / nA, 0, nA.shape[0], nA.shape[0])
@@ -684,6 +701,7 @@ def manually_refine_components(Y, xxx_todo_changeme, A, C, Cn, thr=0.9, display_
 
     return A, C
 
+
 def app_vertex_cover(A):
     """ Finds an approximate vertex cover for a symmetric graph with adjacency matrix A.
 
@@ -762,6 +780,7 @@ def update_order(A, new_a=None, prev_list=None, method='greedy'):
 
         return prev_list, count_list
 
+
 def order_components(A, C):
     """Order components based on their maximum temporal value and size
 
@@ -795,6 +814,7 @@ def order_components(A, C):
     C_or = spdiags(old_div(1., nA2[srt]), 0, K, K) * (C[srt, :])
 
     return A_or, C_or, srt
+
 
 def update_order_random(A, flag_AA=True):
     """Determies the update order of temporal components using
@@ -911,6 +931,7 @@ def compute_residuals(Yr_mmap_file, A_, b_, C_, f_, dview=None, block_size=1000,
                                                 0, Ab.shape[-1], Ab.shape[-1])).tocsr()
 
     return (YA - (AA.T.dot(Cf)).T)[:, :A_.shape[-1]].T
+
 
 def normalize_AC(A, C, YrA, b, f, neurons_sn):
     """ Normalize to unit norm A and b

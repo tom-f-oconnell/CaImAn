@@ -47,6 +47,7 @@ try:
 except:
     pass
 
+
 def resize(Y, size, interpolation=cv2.INTER_LINEAR):
     """faster and 3D compatible version of skimage.transform.resize"""
     if Y.ndim == 2:
@@ -152,6 +153,55 @@ try:
 except:
     def profile(a): return a
 
+
+'''
+(this is NOT complete yet!)
+
+Parameters actually relevant to each method_init:
+common to all (except maybe local_nmf, which seems broken?):
+- K (except maybe local_nmf? so is that the "group LASSO" one?)
+- gSig
+- gSiz
+- tsub
+- ssub
+- nb 
+- normalize_init
+- img (maybe only used if normalize_init?)
+- center_psf (though maybe just corr_pnr)
+
+greedy_roi:
+- nIter
+- maxIter (if use_hals)
+- kernel
+- use_hals (but only a kwarg now, it seems)
+- rolling_sum
+- rolling_length
+
+corr_pnr:
+- options_total
+- min_corr
+- min_pnr
+- ring_size_factor
+- center_psf (though maybe common)
+- ssub_B
+- init_iter
+
+sparse_nmf:
+- perc_baseline_snmf
+- max_iter_snmf
+- sigma_smooth_snmf
+- alpha_snmf
+
+pca_ica:
+- perc_baseline_snmf
+- max_iter_snmf
+- sigma_smooth_snmf
+
+local_nmf:
+- options_local_NMF
+
+'''
+# TODO present use_hals in params? is it renamed or something / not in init?
 def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter=5, maxIter=5, nb=1,
                           kernel=None, use_hals=True, normalize_init=True, img=None, method_init='greedy_roi',
                           max_iter_snmf=500, alpha_snmf=10e2, sigma_smooth_snmf=(.5, .5, .5),
@@ -258,6 +308,8 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         sn: ndarray
             per pixel noise
 
+        # TODO delete / rename to indicate it is specific to 1p case. why not
+        # use params for this anyway?
         options_total: dict
             the option dictionary
 
@@ -299,12 +351,20 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         ssub = 1
 
     if gSiz is None:
+        # TODO how does this astype int thing round?
         gSiz = 2 * (np.asarray(gSig) + .5).astype(int) + 1
 
-    d, T = np.shape(Y)[:-1], np.shape(Y)[-1]
+    d = np.shape(Y)[:-1]
+    T = np.shape(Y)[-1]
+    print('d =', d)
+    print('T =', T)
+
     # rescale according to downsampling factor
     gSig = np.asarray(gSig, dtype=float) / ssub
     gSiz = np.round(np.asarray(gSiz) / ssub).astype(np.int)
+    # TODO TODO maybe also need to change d by ssub in some cases (and that
+    # might restrict which values ssub and tsub can take...)
+    # (reshaping w/ elements from Ain tsub=2 ssub=1 nb=2 failed)
 
     if normalize_init is True:
         logging.info('Variance Normalization')
@@ -322,13 +382,16 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
 
     if ssub != 1 or tsub != 1:
 
+        # TODO maybe time is supposed to be first dimension here? is that
+        # cause of tsub=2, ssub=1 bug, where ROIs have ~2:1 aspect ratio?
+        print('Y shape before downsampling:', Y.shape)
         if method == 'corr_pnr':
             logging.info("Spatial/Temporal downsampling 1-photon")
-            # this icrements the performance against ground truth and solves border problems
+            # this increments the performance against ground truth and solves border problems
             Y_ds = downscale(Y, tuple([ssub] * len(d) + [tsub]), opencv=False)
         else:
             logging.info("Spatial/Temporal downsampling 2-photon")
-            # this icrements the performance against ground truth and solves border problems
+            # this increments the performance against ground truth and solves border problems
             Y_ds = downscale(Y, tuple([ssub] * len(d) + [tsub]), opencv=True)
 #            mean_val = np.mean(Y)
 #            Y_ds = downscale_local_mean(Y, tuple([ssub] * len(d) + [tsub]), cval=mean_val)
@@ -414,14 +477,16 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
 
     K = np.shape(Ain)[-1]
 
+    # TODO want center_psf to act here? only affect output of corr_pnr?
+    # if it affects output of other methods, is that in error?
     if Ain.size > 0 and not center_psf and ssub != 1:
-
         Ain = np.reshape(Ain, ds + (K,), order='F')
 
         if len(ds) == 2:
             Ain = resize(Ain, d + (K,))
 
-        else:  # resize only deals with 2D images, hence apply resize twice
+        else:
+            # resize only deals with 2D images, hence apply resize twice
             Ain = np.reshape([resize(a, d[1:] + (K,))
                               for a in Ain], (ds[0], d[1] * d[2], K), order='F')
             Ain = resize(Ain, (d[0], d[1] * d[2], K))
@@ -429,6 +494,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         Ain = np.reshape(Ain, (np.prod(d), K), order='F')
 
     sparse_b = spr.issparse(b_in)
+    # TODO what is nb == -1 again?
     if (nb > 0 or nb == -1) and (ssub != 1 or tsub != 1):
         b_in = np.reshape(b_in.toarray() if sparse_b else b_in, ds + (-1,), order='F')
 
@@ -460,6 +526,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
             b_in = spr.diags(img.ravel(order='F')).dot(b_in)
         else:
             b_in = b_in * np.reshape(img, (np.prod(d), -1), order='F')
+
     if method == 'corr_pnr' and ring_size_factor is not None:
         return scipy.sparse.csc_matrix(Ain), Cin, b_in, f_in, center, extra_1p
     else:
@@ -534,6 +601,7 @@ def ICA_PCA(Y_ds, nr, sigma_smooth=(.5, .5, .5), truncate=2, fun='logcosh',
     center = caiman.base.rois.com(A_in, d1, d2)
 
     return A_in, C_in, center, b_in, f_in
+
 
 def sparseNMF(Y_ds, nr, max_iter_snmf=500, alpha=10e2, sigma_smooth=(.5, .5, .5),
               remove_baseline=True, perc_baseline=20, nb=1, truncate=2):
@@ -728,6 +796,7 @@ def graphNMF(Y_ds, nr, max_iter_snmf=500, lambda_gnmf=1,
 
     return A_in, C_in, center, b_in, f_in
 
+
 def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1,
               rolling_sum=False, rolling_length=100):
     """
@@ -783,6 +852,7 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1,
     """
     logging.info("Greedy initialization of spatial and temporal components using spatial Gaussian filtering")
     d = np.shape(Y)
+    # TODO option to not change input data? copy by default?
     Y[np.isnan(Y)] = 0
     med = np.median(Y, axis=-1)
     Y = Y - med[..., np.newaxis]
@@ -856,6 +926,7 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1,
                      order='F') + med.flatten(order='F')[:, None]
 #    model = NMF(n_components=nb, init='random', random_state=0)
     model = NMF(n_components=nb, init='nndsvdar')
+    # TODO TODO is b_in shape correct in both nb==1 and nb>1 cases?
     b_in = model.fit_transform(np.maximum(res, 0)).astype(np.float32)
     f_in = model.components_.astype(np.float32)
 
@@ -899,6 +970,7 @@ def finetune(Y, cin, nIter=5):
         cin = np.sum(Y * a[..., np.newaxis], tuple(np.arange(Y.ndim - 1)))
 
     return a, cin
+
 
 def imblur(Y, sig=5, siz=11, nDimBlur=None, kernel=None, opencv=True):
     """
@@ -977,6 +1049,8 @@ def imblur(Y, sig=5, siz=11, nDimBlur=None, kernel=None, opencv=True):
 
     return X
 
+
+# TODO are there multiple hals implementations in CaImAn? why?
 def hals(Y, A, C, b, f, bSiz=3, maxIter=5):
     """ Hierarchical alternating least square method for solving NMF problem
 

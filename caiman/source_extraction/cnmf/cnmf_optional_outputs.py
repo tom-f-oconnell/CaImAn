@@ -9,9 +9,9 @@ A similar CNMF class that will output data that are not usually present in the r
 Created on Fri Aug 26 15:44:32 2016
 
 @author: agiovann
-
-
 """
+# TODO what actually are these extra outputs? used? why not just implemented as
+# a flag in normal cnmf / subclass or something
 
 from builtins import str
 from builtins import object
@@ -141,6 +141,7 @@ class CNMF(object):
         self.b = None
         self.f = None
 
+
     def fit(self, images):
         """
         This method uses the cnmf algorithm to find sources in data.
@@ -245,3 +246,4 @@ class CNMF(object):
         self.sn = sn
 
         return self
+

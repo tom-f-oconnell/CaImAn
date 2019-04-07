@@ -1185,6 +1185,9 @@ class CNMF(object):
                 estim.S, estim.bl, estim.c1, estim.neurons_sn, \
                     estim.g, estim.YrA, estim.lam, estim.W, estim.b0 = extra_1p
         else:
+            # TODO weird that options_total are passed this way, when they seem
+            # to only be used in corr_pnr (above) case,
+            # in initialize_components.
             estim.A, estim.C, estim.b, estim.f, estim.center =\
                 initialize_components(Y, sn=estim.sn, options_total=self.params.to_dict(),
                                       **self.params.get_group('init'))

@@ -77,6 +77,8 @@ def decimate_last_axis(y, sub):
     return Y_ds
 
 
+# TODO TODO TODO fix. this function is broken. lenght of each dim of Y is not
+# just divided by the corresponding element of ds
 def downscale(Y, ds, opencv=False):
     """downscaling without zero padding
     faster version of skimage.transform._warps.block_reduce(Y, ds, np.nanmean, np.nan)"""
@@ -88,6 +90,8 @@ def downscale(Y, ds, opencv=False):
             Y = Y[..., None]
             ds = tuple(ds) + (1,)
         else:
+            # TODO note that this transpose didn't used to be there. might break
+            # some of my code.
             Y_ds = movie(Y.transpose(2, 0, 1)).resize(fx=1. / ds[0], fy=1. / ds[1], fz=1. / ds[2],
                                                       interpolation=cv2.INTER_AREA).transpose(1, 2, 0)
         logging.info('Downscaling using OpenCV')
@@ -105,6 +109,7 @@ def downscale(Y, ds, opencv=False):
 
         if d == 3 and Y.shape[-1] > 1 and ds[0] == ds[1]:
             ds_mat = caiman.source_extraction.cnmf.utilities.decimation_matrix(Y.shape[:2], ds[0])
+            # TODO is there really not a more elegant way to do this?
             Y_ds = ds_mat.dot(Y.reshape((-1, Y.shape[-1]), order='F')).reshape(
                 (1 + (Y.shape[0] - 1) // ds[0], 1 + (Y.shape[1] - 1) // ds[0], -1), order='F')
             if ds[2] > 1:
@@ -114,9 +119,11 @@ def downscale(Y, ds, opencv=False):
             r = np.array(Y.shape) % np.array(ds)
             s = q * np.array(ds)
             Y_ds = np.zeros(q + (r > 0), dtype=Y.dtype)
+            # TODO is there really not a more elegant way to do this?
             Y_ds[:q[0], :q[1], :q[2]] = (Y[:s[0], :s[1], :s[2]]
                                          .reshape(q[0], ds[0], q[1], ds[1], q[2], ds[2])
                                          .mean(1).mean(2).mean(3))
+            # TODO explanation of how this is working?
             if r[0]:
                 Y_ds[-1, :q[1], :q[2]] = (Y[-r[0]:, :s[1], :s[2]]
                                           .reshape(r[0], q[1], ds[1], q[2], ds[2])
@@ -378,10 +385,11 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     else:
         Y = np.array(Y)
 
-    # spatial downsampling
-
+    #
+    print('ssub:', ssub)
+    print('tsub:', tsub)
+    #
     if ssub != 1 or tsub != 1:
-
         # TODO maybe time is supposed to be first dimension here? is that
         # cause of tsub=2, ssub=1 bug, where ROIs have ~2:1 aspect ratio?
         print('Y shape before downsampling:', Y.shape)
@@ -389,10 +397,23 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
             logging.info("Spatial/Temporal downsampling 1-photon")
             # this increments the performance against ground truth and solves border problems
             Y_ds = downscale(Y, tuple([ssub] * len(d) + [tsub]), opencv=False)
+
         else:
             logging.info("Spatial/Temporal downsampling 2-photon")
+            # Their use of OpenCV method doesn't seem to support downsampling in
+            # time. Would need to fix.
+            '''
+            if tsub != 1:
+                raise NotImplementedError('CaImAn opencv downscale does not ' +
+                    'support downsampling time axis')
+
             # this increments the performance against ground truth and solves border problems
+            print('downscale 2nd arg:', tuple([ssub] * len(d) + [tsub]))
+            # TODO why is opencv True here? is opencv=False at least working
+            # correctly?
             Y_ds = downscale(Y, tuple([ssub] * len(d) + [tsub]), opencv=True)
+            '''
+            Y_ds = downscale(Y, tuple([ssub] * len(d) + [tsub]), opencv=False)
 #            mean_val = np.mean(Y)
 #            Y_ds = downscale_local_mean(Y, tuple([ssub] * len(d) + [tsub]), cval=mean_val)
     else:
@@ -401,6 +422,10 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     ds = Y_ds.shape[:-1]
     if nb > min(np.prod(ds), Y_ds.shape[-1]):
         nb = -1
+    #
+    print('ds =', ds)
+    print('Y_ds.shape:', Y_ds.shape)
+    #
 
     logging.info('Roi Initialization...')
     if method == 'greedy_roi':
@@ -860,6 +885,12 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1,
     gSiz = 2 * gHalf + 1
     # we initialize every values to zero
     A = np.zeros((np.prod(d[0:-1]), nr), dtype=np.float32)
+    # TODO TODO so is A here supposed to use downsampled spatial dimensions or
+    # not? what's the contract?
+    #
+    print('d in greedyROI:', d)
+    print('A.shape in greedyROI:', A.shape)
+    #
     C = np.zeros((nr, d[-1]), dtype=np.float32)
     center = np.zeros((nr, Y.ndim - 1))
 
@@ -900,9 +931,15 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1,
                         for s in xySig], dtype=np.int)
         indices = np.ravel_multi_index(arr, d[0:-1], order='F')
 
+        # TODO TODO handling tsub/ssub correctly?
         A[indices, k] = np.reshape(
             coef, (1, np.size(coef)), order='C').squeeze()
+        # TODO futurewarning on indeces? some reason we don't get that error
+        # here? maybe it's already behaving incorrectly? (see if still
+        # applicable. upstream changes might have effectively reverted what i
+        # had previously changed this line to)
         Y[tuple([slice(*a) for a in ijSig])] -= dataSig.copy()
+
         if k < nr - 1:
             Mod = [[np.maximum(ij[c] - 2 * gHalf[c], 0),
                     np.minimum(ij[c] + 2 * gHalf[c] + 1, d[c])] for c in range(len(ij))]

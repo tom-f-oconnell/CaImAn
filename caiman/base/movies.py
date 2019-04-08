@@ -700,6 +700,8 @@ class movie(ts.timeseries):
                               meta_data=self.meta_data,
                               file_name=self.file_name)
 
+    # TODO why are all of these analysis methods implemented here? still
+    # supported? delete?
     def NonnegativeMatrixFactorization(self,
                                        n_components: int = 30,
                                        init: str = 'nndsvd',
@@ -1045,6 +1047,7 @@ class movie(ts.timeseries):
         traces = trace(np.dot(A, np.transpose(Y)).T, **self.__dict__)
         return traces
 
+    # TODO TODO what about time dimension?
     def resize(self, fx=1, fy=1, fz=1, interpolation=cv2.INTER_AREA):
         """
         Resizing caiman movie into a new one. Note that the temporal
@@ -1070,11 +1073,14 @@ class movie(ts.timeseries):
         elm = d * T
         max_els = 2**61 - 1    # the bug for sizes >= 2**31 is appears to be fixed now
         if elm > max_els:
+            # TODO maybe just raise NotImplementedError here for debugging other
+            # path purposes?
             chunk_size = old_div((max_els), d)
             new_m: List = []
             logging.debug('Resizing in chunks because of opencv bug')
             for chunk in range(0, T, chunk_size):
                 logging.debug([chunk, np.minimum(chunk + chunk_size, T)])
+                # TODO need to copy? why?
                 m_tmp = self[chunk:np.minimum(chunk + chunk_size, T)].copy()
                 m_tmp = m_tmp.resize(fx=fx, fy=fy, fz=fz, interpolation=interpolation)
                 if len(new_m) == 0:
@@ -1092,7 +1098,9 @@ class movie(ts.timeseries):
                 logging.debug("New shape is " + str(newshape))
                 for frame in self:
                     mov.append(cv2.resize(frame, newshape, fx=fx, fy=fy, interpolation=interpolation))
+                # TODO wut? seems like, at least, bad practice
                 self = movie(np.asarray(mov), **self.__dict__)
+
             if fz != 1:
                 logging.debug("reshaping along z")
                 t, h, w = self.shape
@@ -1103,6 +1111,7 @@ class movie(ts.timeseries):
                 self.fr = self.fr * fz
 
         return self
+
 
     def guided_filter_blur_2D(self, guide_filter, radius: int = 5, eps=0):
         """

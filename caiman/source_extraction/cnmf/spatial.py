@@ -294,6 +294,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
             # TODO TODO what is causing problem here? one of these args not of
             # correct dimensions?
             # w/ 2019-02-27/4/_003 data ~ 8:40 am 4/2/19
+            '''
             print(type(Y_resf))
             print(Y_resf.shape)
             print(type(b_in))
@@ -302,6 +303,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
             print(f.shape)
             print(type(ind_b))
             print(ind_b.shape)
+            '''
             b = HALS4shape_bckgrnd(Y_resf, b_in, f, ind_b)
 
     else:

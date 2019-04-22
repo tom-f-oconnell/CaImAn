@@ -763,6 +763,8 @@ class CNMF(object):
                 # TODO maybe factor this into a function? push into update
                 # spatial?
                 FOV = np.zeros(dims_orig, order='C')
+                # TODO check casting to tuple not useful like i had in my
+                # modified version of this (futurewarn?)
                 FOV[indices[1:]] = 1
                 FOV = FOV.flatten(order='F')
                 ind_nz = np.where(FOV>0)[0].tolist()

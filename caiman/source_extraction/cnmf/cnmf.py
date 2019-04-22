@@ -314,6 +314,46 @@ class CNMF(object):
     # TODO replace indeces in any calling code of mine w/ indices
     # (upstream fixed the typo)
     @staticmethod
+    def unslice_footprints(A, dims_orig, indeces):
+        FOV = np.zeros(dims_orig, order='C')
+        FOV[tuple(indeces)] = 1
+        FOV = FOV.flatten(order='F')
+        ind_nz = np.where(FOV > 0)[0].tolist()
+        A = A.tocsc()
+        A_data = A.data
+        A_ind = np.array(ind_nz)[A.indices]
+        A_ptr = A.indptr
+        A_FOV = scipy.sparse.csc_matrix((A_data, A_ind, A_ptr),
+            shape=(FOV.shape[0], A.shape[-1]))
+        return A_FOV
+
+
+    def unslice_estimates(self, dims_orig, indeces):
+        # TODO do in update spatial? (why did i think this again?)
+        FOV = np.zeros(dims_orig, order='C')
+        # TODO TODO why (was it) indeces[1:]?? seems like an error..
+        # (because indeces aren't like prepended w/ a slice(None) or
+        # anything above, as far as i can tell)
+        #####FOV[indeces[1:]] = 1
+        FOV[tuple(indeces)] = 1
+
+        FOV = FOV.flatten(order='F')
+        ind_nz = np.where(FOV > 0)[0].tolist()
+        # TODO is it really not already? maybe it should be?
+        self.estimates.A = self.estimates.A.tocsc()
+        A_data = self.estimates.A.data
+        A_ind = np.array(ind_nz)[self.estimates.A.indices]
+        A_ptr = self.estimates.A.indptr
+        A_FOV = scipy.sparse.csc_matrix((A_data, A_ind, A_ptr),
+            shape=(FOV.shape[0], self.estimates.A.shape[-1]))
+
+        b_FOV = np.zeros((FOV.shape[0], self.estimates.b.shape[-1]))
+        b_FOV[ind_nz] = self.estimates.b
+        self.estimates.A = A_FOV
+        self.estimates.b = b_FOV
+
+
+    @staticmethod
     def get_sliced_movie(images, indices=[slice(None), slice(None)]):
         if isinstance(indices, slice):
             indices = [indices]
@@ -507,9 +547,27 @@ class CNMF(object):
             indices = indices + [slice(None)]*(len(images.shape) - len(indices))
         indices = tuple(indeces)
         dims_orig = images.shape[1:]
+
+        check_slicing = False
+        if indeces is None:
+            x_border = self.params.get('preprocess', 'x_crop_border')
+            y_border = self.params.get('preprocess', 'y_crop_border')
+            # TODO make sure this isn't off by one
+            indeces = [
+                slice(x_border, dims_orig[0] - x_border),
+                slice(y_border, dims_orig[1] - y_border)
+            ]
+            check_slicing = True
+
         # TODO check this old line of mine didn't break as i applied upstream
         # changes...
         images = self.get_sliced_movie(images, indices=indices)
+        if check_slicing:
+            expected_x_size = dims_orig[0] - 2 * x_border
+            assert images.shape[1] == expected_x_size
+            expected_y_size = dims_orig[1] - 2 * y_border
+            assert images.shape[2] == expected_y_size
+
         dims_sliced = images[tuple(indices)].shape[1:]
 
         # TODO maybe it should *always* reset dims? (refers to now commented
@@ -611,7 +669,9 @@ class CNMF(object):
 
                 # TODO assert correct type?
                 assert 'csc_matrix' in str(type(self.estimates.A))
-                self.A_init = self.estimates.A.copy()
+                self.A_init = self.unslice_footprints(self.estimates.A.copy(),
+                    dims_orig, indeces)
+
                 self.A_spatial_update_k = []
                 self.A_after_merge_k = []
                 self.A_spatial_refinement_k = []
@@ -658,6 +718,7 @@ class CNMF(object):
                     self.estimates.YrA = self.estimates.YrA[idx_components]
 
                 # TODO see note about is_sliced path below
+                self.unslice_estimates(dims_orig, indeces)
 
                 self.estimates.normalize_components()
 
@@ -685,6 +746,8 @@ class CNMF(object):
                 # TODO maybe also assert numpy ndarray here?
                 self.A_spatial_update_k.append(scipy.sparse.csc_matrix(
                     self.estimates.A))
+            self.A_spatial_update_k[-1] = self.unslice_footprints(
+                self.A_spatial_update_k[-1], dims_orig, indeces)
 
             logging.info('update temporal ...')
             if not self.skip_refinement:
@@ -730,6 +793,11 @@ class CNMF(object):
                             self.estimates.A
                         ))
 
+                    # TODO delete this hack if my most recent code before
+                    # pulling upstream changes 2020-05-26 didn't use it anyway
+                    self.A_after_merge_k[-1] = self.unslice_footprints(
+                        self.A_after_merge_k[-1], dims_orig, indeces)
+
                 logging.info('Updating spatial ...')
 
                 # TODO use_init? (delete this flag and Cin/f_in unless there is
@@ -747,6 +815,8 @@ class CNMF(object):
                 except AssertionError:
                     self.A_spatial_refinement_k.append(scipy.sparse.csc_matrix(
                         self.estimates.A))
+                self.A_spatial_refinement_k[-1] = self.unslice_footprints(
+                    self.A_spatial_refinement_k[-1], dims_orig, indeces)
 
                 # set it back to original value to perform full deconvolution
                 self.params.set('temporal', {'p': self.params.get('preprocess', 'p')})
@@ -758,6 +828,10 @@ class CNMF(object):
 
             # embed in the whole FOV
             if is_sliced:
+                # just leaving for reference, in case this is doing something
+                # that unslice_estimates is not. but it did seem during rebase
+                # that its likely that unslice_estimates fully replaces this
+                '''
                 # TODO wouldn't we also want to do this in only_init case?
                 # shouldn't it just always happen before return?
                 # TODO maybe factor this into a function? push into update
@@ -779,6 +853,10 @@ class CNMF(object):
                 b_FOV[ind_nz] = self.estimates.b
                 self.estimates.A = A_FOV
                 self.estimates.b = b_FOV
+                '''
+                # TODO TODO TODO wouldn't we also want to do this in only_init
+                # case? shouldn't it just always happen before return?
+                self.unslice_estimates(dims_orig, indeces)
 
         else:  # use patches
             if self.params.get('patch', 'stride') is None:

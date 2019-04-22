@@ -43,6 +43,7 @@ class CNMFParams(object):
                  update_freq=200, update_num_comps=True, use_dense=True, use_peak_max=True,
                  only_init_patch=True, var_name_hdf5='mov', max_merge_area=None, 
                  use_corr_img=False, params_dict={},
+                 x_crop_border=0, y_crop_border=0
                  ):
         """Class for setting the processing parameters. All parameters for CNMF, online-CNMF, quality testing,
         and motion correction can be set here and then used in the various processing pipeline steps.
@@ -54,6 +55,7 @@ class CNMFParams(object):
         Args:
             Any parameter that is not set get a default value specified
             by the dictionary default options
+
         DATA PARAMETERS (CNMFParams.data) #####
 
             fnames: list[str]
@@ -173,6 +175,12 @@ class CNMFParams(object):
 
             check_nan: bool, default: True
                 whether to check for NaNs
+
+            x_crop_border: int, default: 0
+                number of pixels to not analyze on both X borders
+
+            y_crop_border: int, default: 0
+                number of pixels to not analyze on both Y borders
 
         INIT PARAMS (CNMFParams.init)###############
 
@@ -682,6 +690,8 @@ class CNMFParams(object):
             'p': p,                      # order of AR indicator dynamics
             'pixels': None,              # pixels to be excluded due to saturation
             'sn': None,                  # noise level for each pixel
+            'x_crop_border': x_crop_border,
+            'y_crop_border': y_crop_border
         }
 
         self.init = {

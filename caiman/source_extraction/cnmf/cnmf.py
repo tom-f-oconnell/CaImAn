@@ -509,7 +509,8 @@ class CNMF(object):
     # TODO maybe just rename to something indicating it is just a xy roi, while
     # we are at it. actually... why doesn't it seem to generalize to Z? make it?
     # (above comment still relevant?)
-    def fit(self, images, indices=(slice(None), slice(None))):
+    def fit(self, images, indices=(slice(None), slice(None)),
+            intermediate_footprints=False):
         """
         This method uses the cnmf algorithm to find sources in data.
         it is calling every function from the cnmf folder
@@ -667,21 +668,23 @@ class CNMF(object):
                 # actually scipy array? or is it not yet? maybe it should be
                 # anyway, and i should change the copy fn as appropriate?
 
-                # TODO assert correct type?
-                assert 'csc_matrix' in str(type(self.estimates.A))
-                self.A_init = self.unslice_footprints(self.estimates.A.copy(),
-                    dims_orig, indeces)
+                if intermediate_footprints:
+                    # TODO assert correct type?
+                    assert 'csc_matrix' in str(type(self.estimates.A))
+                    self.A_init = self.unslice_footprints(
+                        self.estimates.A.copy(), dims_orig, indeces)
 
-                self.A_spatial_update_k = []
-                self.A_after_merge_k = []
-                self.A_spatial_refinement_k = []
+                    self.A_spatial_update_k = []
+                    self.A_after_merge_k = []
+                    self.A_spatial_refinement_k = []
+
                 print('A type after init:', type(self.estimates.A))
                 print('A shape after init:', self.estimates.A.shape)
 
             # TODO option to time each part of cnmf.fit
 
             # TODO move this out of patch params. probably to initialization.
-            if self.params.get('patch', 'only_init'):  # only return values after initialization
+            if self.params.get('patch', 'only_init'):
                 if not (self.params.get('init', 'method_init') == 'corr_pnr' and
                     self.params.get('init', 'ring_size_factor') is not None):
                     # TODO why is this only done here??? i don't understand...
@@ -739,15 +742,16 @@ class CNMF(object):
             print('A shape after spatial:', self.estimates.A.shape)
             # TODO TODO TODO fix steps setting self.estimates.A at this point,
             # s.t. it is a csc_matrix as expected
-            try:
-                assert 'csc_matrix' in str(type(self.estimates.A))
-                self.A_spatial_update_k.append(self.estimates.A.copy())
-            except AssertionError:
-                # TODO maybe also assert numpy ndarray here?
-                self.A_spatial_update_k.append(scipy.sparse.csc_matrix(
-                    self.estimates.A))
-            self.A_spatial_update_k[-1] = self.unslice_footprints(
-                self.A_spatial_update_k[-1], dims_orig, indeces)
+            if intermediate_footprints:
+                try:
+                    assert 'csc_matrix' in str(type(self.estimates.A))
+                    self.A_spatial_update_k.append(self.estimates.A.copy())
+                except AssertionError:
+                    # TODO maybe also assert numpy ndarray here?
+                    self.A_spatial_update_k.append(scipy.sparse.csc_matrix(
+                        self.estimates.A))
+                self.A_spatial_update_k[-1] = self.unslice_footprints(
+                    self.A_spatial_update_k[-1], dims_orig, indeces)
 
             logging.info('update temporal ...')
             if not self.skip_refinement:
@@ -785,18 +789,20 @@ class CNMF(object):
                     # after merging upstream 2020-05-26. my code will still
                     # depend on these other variables being added though, so
                     # leave that unless i refactor.
-                    try:
-                        assert 'csc_matrix' in str(type(self.estimates.A))
-                        self.A_after_merge_k.append(self.estimates.A.copy())
-                    except AssertionError:
-                        self.A_after_merge_k.append(scipy.sparse.csc_matrix(
-                            self.estimates.A
-                        ))
+                    if intermediate_footprints:
+                        try:
+                            assert 'csc_matrix' in str(type(self.estimates.A))
+                            self.A_after_merge_k.append(self.estimates.A.copy())
+                        except AssertionError:
+                            self.A_after_merge_k.append(scipy.sparse.csc_matrix(
+                                self.estimates.A
+                            ))
 
-                    # TODO delete this hack if my most recent code before
-                    # pulling upstream changes 2020-05-26 didn't use it anyway
-                    self.A_after_merge_k[-1] = self.unslice_footprints(
-                        self.A_after_merge_k[-1], dims_orig, indeces)
+                        # TODO delete this hack if my most recent code before
+                        # pulling upstream changes (at 2020-05-26) didn't use it
+                        # anyway
+                        self.A_after_merge_k[-1] = self.unslice_footprints(
+                            self.A_after_merge_k[-1], dims_orig, indeces)
 
                 logging.info('Updating spatial ...')
 
@@ -809,17 +815,23 @@ class CNMF(object):
                 # TODO maybe do after update temporal too, if that isn't
                 # guaranteed not to try to change A (docs say it might...)?
                 # TODO TODO or maybe at least assert other steps don't change A?
-                try:
-                    assert 'csc_matrix' in str(type(self.estimates.A))
-                    self.A_spatial_refinement_k.append(self.estimates.A.copy())
-                except AssertionError:
-                    self.A_spatial_refinement_k.append(scipy.sparse.csc_matrix(
-                        self.estimates.A))
-                self.A_spatial_refinement_k[-1] = self.unslice_footprints(
-                    self.A_spatial_refinement_k[-1], dims_orig, indeces)
+                if intermediate_footprints:
+                    try:
+                        assert 'csc_matrix' in str(type(self.estimates.A))
+                        self.A_spatial_refinement_k.append(
+                            self.estimates.A.copy())
+
+                    except AssertionError:
+                        self.A_spatial_refinement_k.append(
+                            scipy.sparse.csc_matrix(self.estimates.A))
+
+                    self.A_spatial_refinement_k[-1] = self.unslice_footprints(
+                        self.A_spatial_refinement_k[-1], dims_orig, indeces)
 
                 # set it back to original value to perform full deconvolution
-                self.params.set('temporal', {'p': self.params.get('preprocess', 'p')})
+                self.params.set('temporal',
+                    {'p': self.params.get('preprocess', 'p')})
+
                 logging.info('update temporal ...')
                 self.update_temporal(Yr, use_init=False)
             # else:

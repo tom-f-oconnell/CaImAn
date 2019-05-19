@@ -1141,15 +1141,31 @@ class CNMFParams(object):
 
 
     @staticmethod
-    def from_json(filename):
+    def from_json_file(filename):
+        """Takes JSON filename and returns CNMFParams set from file contents.
+        """
         new_params = CNMFParams()
         with open(filename, 'r') as f:
             data = json.load(f)
+        # TODO maybe just read file and call from_json w/ str?
 
         for g, ps in data.items():
             new_params.set(g, ps)
 
         return new_params
+
+
+    @staticmethod
+    def from_json(json_str):
+        """Takes JSON str and returns CNMFParams set from contents.
+        """
+        new_params = CNMFParams()
+        data = json.loads(json_str)
+        for g, ps in data.items():
+            new_params.set(g, ps)
+
+        return new_params
+
 
     # TODO TODO add methods to make params de/serializable from/to pickle?
     # TODO and make both methods take an (optional) file-like object, so they

@@ -552,11 +552,17 @@ class CNMF(object):
         check_slicing = False
         if indeces is None:
             x_border = self.params.get('preprocess', 'x_crop_border')
+            if type(x_border) is int:
+                x_border = (x_border, x_border)
+
             y_border = self.params.get('preprocess', 'y_crop_border')
+            if type(y_border) is int:
+                y_border = (y_border, y_border)
+
             # TODO make sure this isn't off by one
             indeces = [
-                slice(x_border, dims_orig[0] - x_border),
-                slice(y_border, dims_orig[1] - y_border)
+                slice(x_border[0], dims_orig[0] - x_border[1]),
+                slice(y_border[0], dims_orig[1] - y_border[1])
             ]
             check_slicing = True
 
@@ -564,9 +570,9 @@ class CNMF(object):
         # changes...
         images = self.get_sliced_movie(images, indices=indices)
         if check_slicing:
-            expected_x_size = dims_orig[0] - 2 * x_border
+            expected_x_size = dims_orig[0] - sum(x_border)
             assert images.shape[1] == expected_x_size
-            expected_y_size = dims_orig[1] - 2 * y_border
+            expected_y_size = dims_orig[1] - sum(y_border)
             assert images.shape[2] == expected_y_size
 
         dims_sliced = images[tuple(indices)].shape[1:]

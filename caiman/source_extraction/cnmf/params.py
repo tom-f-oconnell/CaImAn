@@ -43,7 +43,7 @@ class CNMFParams(object):
                  update_freq=200, update_num_comps=True, use_dense=True, use_peak_max=True,
                  only_init_patch=True, var_name_hdf5='mov', max_merge_area=None, 
                  use_corr_img=False, params_dict={},
-                 x_crop_border=0, y_crop_border=0
+                 x_crop_border=(0, 0), y_crop_border=(0, 0)
                  ):
         """Class for setting the processing parameters. All parameters for CNMF, online-CNMF, quality testing,
         and motion correction can be set here and then used in the various processing pipeline steps.
@@ -176,11 +176,13 @@ class CNMFParams(object):
             check_nan: bool, default: True
                 whether to check for NaNs
 
-            x_crop_border: int, default: 0
+            x_crop_border: int or tuple of two ints, default: (0, 0)
                 number of pixels to not analyze on both X borders
+                each border given same number of pixels if int
 
-            y_crop_border: int, default: 0
+            y_crop_border: int or tuple of two ints, default: (0, 0)
                 number of pixels to not analyze on both Y borders
+                each border given same number of pixels if int
 
         INIT PARAMS (CNMFParams.init)###############
 

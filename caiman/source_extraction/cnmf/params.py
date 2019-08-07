@@ -388,7 +388,7 @@ class CNMFParams(object):
             do_merge: bool, default: True
                 Whether or not to merge
 
-            thr: float, default: 0.8
+            merge_thr: float, default: 0.8
                 Trace correlation threshold for merging two components.
 
             merge_parallel: bool, default: False
@@ -405,6 +405,8 @@ class CNMFParams(object):
             SNR_lowest: float, default: 0.5
                 minimum required trace SNR. Traces with SNR below this will get rejected
 
+            # TODO TODO actually, how does this differ from rval_lowest?
+            # does "not accepted" not mean "rejected"?
             rval_thr: float, default: 0.8
                 space correlation threshold. Components with correlation higher than this will get accepted
 

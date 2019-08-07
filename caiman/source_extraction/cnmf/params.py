@@ -1129,13 +1129,13 @@ class CNMFParams(object):
 
     def to_json(self, *args):
         if len(args) == 0:
-            return json.dumps(self.__dict__, sort_keys=True,
+            return json.dumps(self.__dict__, indent=2, sort_keys=True,
                 cls=CNMFParamJSONEncoder)
 
         elif len(args) == 1:
             filename = args[0]
             with open(filename, 'w') as f:
-                json.dump(self.__dict__, f, sort_keys=True,
+                json.dump(self.__dict__, f, indent=2, sort_keys=True,
                     cls=CNMFParamJSONEncoder)
 
         else:

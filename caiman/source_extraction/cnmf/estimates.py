@@ -1150,6 +1150,9 @@ class Estimates(object):
         if any(flag):
             self.evaluate_components(imgs, params, dview=dview)
         else:
+            # TODO should this really be in an else? does evaluate_components
+            # actually do the "filtering" (does the below?) or just compute
+            # the missing stuff required for the filtering?
             self.idx_components, self.idx_components_bad, self.cnn_preds = \
             select_components_from_metrics(self.A, dims, params.get('init', 'gSig'),
                                            self.r_values, self.SNR_comp,
@@ -1416,6 +1419,8 @@ class Estimates(object):
             print('A_thr already computed. If you want to recompute set self.A_thr to None')
 
 
+    # TODO use the new parameters i added under quality for this
+    # (min/max_component_pixels)
     # TODO what uses this? actually make sure this is run (at least once at the
     # end) of the (no patch, not only_init) path
     def remove_small_large_neurons(self, min_size_neuro, max_size_neuro,

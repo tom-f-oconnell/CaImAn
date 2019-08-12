@@ -422,7 +422,6 @@ def evaluate_components(Y: np.ndarray,
         significant_samples: ndarray
             indexes of samples used to obtain the spatial mask by average
     """
-
     tB = np.minimum(-2, np.floor(-5. / 30 * final_frate))
     tA = np.maximum(5, np.ceil(25. / 30 * final_frate))
     logging.info('tB:' + str(tB) + ',tA:' + str(tA))
@@ -455,6 +454,8 @@ def evaluate_components(Y: np.ndarray,
             numFramesNew, num_traces = np.shape(tr_tmp)
                                                                                              #% compute baseline quickly
             logging.debug("binning data ...")
+            # TODO TODO fix. next line fails, as i'm using it from my gui (may
+            # no longer be true)
             tr_BL = np.reshape(tr_tmp, (downsampfact, numFramesNew // downsampfact, num_traces), order='F')
             tr_BL = np.percentile(tr_BL, 8, axis=0)
             logging.debug("interpolating data ...")

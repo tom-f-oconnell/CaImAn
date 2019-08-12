@@ -43,7 +43,8 @@ class CNMFParams(object):
                  update_freq=200, update_num_comps=True, use_dense=True, use_peak_max=True,
                  only_init_patch=True, var_name_hdf5='mov', max_merge_area=None, 
                  use_corr_img=False, params_dict={},
-                 x_crop_border=(0, 0), y_crop_border=(0, 0)
+                 x_crop_border=(0, 0), y_crop_border=(0, 0),
+                 min_component_pixels=None, max_component_pixels=None
                  ):
         """Class for setting the processing parameters. All parameters for CNMF, online-CNMF, quality testing,
         and motion correction can be set here and then used in the various processing pipeline steps.
@@ -299,16 +300,19 @@ class CNMFParams(object):
             thr_method: 'nrg'|'max', default: 'nrg'
                 thresholding method
 
+            # TODO threshold for what? what does it vary?
             maxthr: float, default: 0.1
                 Max threshold
 
             nrgthr: float, default: 0.9999
                 Energy threshold
 
+            # TODO what does this mean in both cases?
             extract_cc: bool, default: True
                 whether to extract connected components during thresholding
                 (might want to turn to False for dendritic imaging)
 
+            # TODO where is this used?
             medw: (int, int) default: None
                 window of median filter (set to (3,)*len(dims) in cnmf.fit)
 
@@ -407,6 +411,8 @@ class CNMFParams(object):
 
             # TODO TODO actually, how does this differ from rval_lowest?
             # does "not accepted" not mean "rejected"?
+            # (doesn't seem fit(...) is using this or rval_lowest anyway...
+            # setting both > 1 doesn't toss all components as i'd expect)
             rval_thr: float, default: 0.8
                 space correlation threshold. Components with correlation higher than this will get accepted
 
@@ -426,6 +432,14 @@ class CNMFParams(object):
 
             gSig_range: list of integers, default: None
                 gSig scale values for CNN classifier. In not None, multiple values are tested in the CNN classifier.
+
+            # TODO integrate into evaluate_components / stuff done auto after
+            # fit (after fixing other problems in evaluate_components)
+            min_component_pixels: int, default: None
+                Can be used to reject components with less pixels.
+
+            max_component_pixels: int, default: None
+                Can be used to reject components with more pixels.
 
         ONLINE CNMF (ONACID) PARAMETERS (CNMFParams.online)#####
 
@@ -811,6 +825,8 @@ class CNMFParams(object):
             'use_cnn': True,           # use CNN based classifier
             'use_ecc': False,          # flag for eccentricity based filtering
             'max_ecc': 3
+            'min_component_pixels': min_component_pixels,
+            'max_component_pixels': max_component_pixels
         }
 
         self.online = {

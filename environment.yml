@@ -1,3 +1,4 @@
+name: caiman
 channels:
 - conda-forge
 dependencies:

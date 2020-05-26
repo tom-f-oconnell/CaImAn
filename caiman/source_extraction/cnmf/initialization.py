@@ -932,8 +932,12 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1,
         indices = np.ravel_multi_index(arr, d[0:-1], order='F')
 
         # TODO TODO handling tsub/ssub correctly?
+        # TODO futurewarning on indices? some reason we don't get that error
+        # here? maybe it's already behaving incorrectly? (may not still apply)
+        # TODO why order='C' here, when generally order='F'?
         A[indices, k] = np.reshape(
             coef, (1, np.size(coef)), order='C').squeeze()
+
         # TODO futurewarning on indeces? some reason we don't get that error
         # here? maybe it's already behaving incorrectly? (see if still
         # applicable. upstream changes might have effectively reverted what i

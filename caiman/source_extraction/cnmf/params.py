@@ -33,7 +33,7 @@ class CNMFParams(object):
                  update_background_components=True,
                  method_deconvolution='oasis', p=2, s_min=None,
                  do_merge=True, merge_thresh=0.8,
-                 decay_time=0.4, fr=30, min_SNR=2.5, rval_thr=0.8,
+                 decay_time=0.4, fr=30.0, min_SNR=2.5, rval_thr=0.8,
                  N_samples_exceptionality=None, batch_update_suff_stat=False,
                  expected_comps=500, iters_shape=5, max_comp_update_shape=np.inf,
                  max_num_added=5, min_num_trial=5, minibatch_shape=100, minibatch_suff_stat=5,
@@ -65,7 +65,7 @@ class CNMFParams(object):
             dims: (int, int), default: computed from fnames
                 dimensions of the FOV in pixels
 
-            fr: float, default: 30
+            fr: float, default: 30.0
                 imaging rate in frames per second
 
             decay_time: float, default: 0.4

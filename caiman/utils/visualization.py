@@ -343,7 +343,6 @@ def get_contours(A, dims, thr=0.9, thr_method='nrg', swap_dim=False):
          Coor: list of coordinates with center of mass and
                 contour plot coordinates (per layer) for each component
     """
-
     if 'csc_matrix' not in str(type(A)):
         # TODO delete try/except after debugging error in conversion
         try:
@@ -986,6 +985,8 @@ def view_patches_bar(Yr, A, C, b, f, d1, d2, YrA=None, img=None):
 # TODO fix possible error upstream has introduced by using mutable defaults for
 # kwargs (only ever one set produced if not redefined, i think)
 # TODO rename from Cn. it's confusing w/ other C variable
+# TODO why would you ever want to take 'coordinates' here, if that's the main
+# thing this is computing...? really that expensive to recompute?
 def plot_contours(A, Cn, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9,
         display_numbers=True, max_number=None, cmap=None, swap_dim=False,
         colors='w', vmin=None, vmax=None, coordinates=None, contour_args={},
@@ -996,37 +997,37 @@ def plot_contours(A, Cn, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9,
          A:   np.ndarray or sparse matrix
                    Matrix of Spatial components (d x K)
     
-         Cn:  np.ndarray (2D)
-                   Background image (e.g. mean, correlation)
+        Cn:  np.ndarray (2D)
+                  Background image (e.g. mean, correlation)
     
-         thr_method: [optional] string
-                  Method of thresholding:
-                      'max' sets to zero pixels that have value less than a fraction of the max value
-                      'nrg' keeps the pixels that contribute up to a specified fraction of the energy
+        thr_method: [optional] string
+                 Method of thresholding:
+                     'max' sets to zero pixels that have value less than a fraction of the max value
+                     'nrg' keeps the pixels that contribute up to a specified fraction of the energy
     
-         maxthr: [optional] scalar
-                    Threshold of max value
+        maxthr: [optional] scalar
+                   Threshold of max value
     
-         nrgthr: [optional] scalar
-                    Threshold of energy
+        nrgthr: [optional] scalar
+                   Threshold of energy
     
-         thr: scalar between 0 and 1
-                   Energy threshold for computing contours (default 0.9)
-                   Kept for backwards compatibility. If not None then thr_method = 'nrg', and nrgthr = thr
+        thr: scalar between 0 and 1
+                  Energy threshold for computing contours (default 0.9)
+                  Kept for backwards compatibility. If not None then thr_method = 'nrg', and nrgthr = thr
     
-         display_number:     Boolean
-                   Display number of ROIs if checked (default True)
+        display_number:     Boolean
+                  Display number of ROIs if checked (default True)
     
-         max_number:    int
-                   Display the number for only the first max_number components (default None, display all numbers)
+        max_number:    int
+                  Display the number for only the first max_number components (default None, display all numbers)
     
-         cmap:     string
-                   User specifies the colormap (default None, default colormap)
+        cmap:     string
+                  User specifies the colormap (default None, default colormap)
 
-     Returns:
-          coordinates: list of coordinates with center of mass, contour plot coordinates and bounding box for each component
+    Returns:
+         coordinates: list of coordinates with center of mass, contour plot
+             coordinates and bounding box for each component
     """
-
     if swap_dim:
         Cn = Cn.T
         print('Swapping dim')
@@ -1038,7 +1039,6 @@ def plot_contours(A, Cn, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9,
             thr = maxthr
     else:
         thr_method = 'nrg'
-
 
     for key in ['c', 'colors', 'line_color']:
         if key in kwargs.keys():
@@ -1057,6 +1057,7 @@ def plot_contours(A, Cn, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9,
 
     if coordinates is None:
         coordinates = get_contours(A, np.shape(Cn), thr, thr_method, swap_dim)
+
     for c in coordinates:
         v = c['coordinates']
         c['bbox'] = [np.floor(np.nanmin(v[:, 1])), np.ceil(np.nanmax(v[:, 1])),
